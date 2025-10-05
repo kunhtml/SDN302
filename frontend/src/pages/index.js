@@ -4704,11 +4704,411 @@ const AdminDashboard = () => {
     </div>
   );
 };
-const AdminUsers = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Admin Users</h1>
-  </div>
-);
+const AdminUsers = () => {
+  const navigate = useNavigate();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalAction, setModalAction] = useState(""); // 'status', 'role', 'delete'
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (filterRole !== "all") params.append("role", filterRole);
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      params.append("limit", "100");
+
+      const response = await api.get(`/admin/users?${params.toString()}`);
+      if (response.data.success) {
+        setUsers(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchUsers();
+  };
+
+  const handleStatusChange = async (userId, currentStatus) => {
+    try {
+      const response = await api.put(`/admin/users/${userId}/status`, {
+        isActive: !currentStatus,
+      });
+      if (response.data.success) {
+        toast.success(
+          `User ${!currentStatus ? "activated" : "deactivated"} successfully`
+        );
+        fetchUsers();
+        setShowModal(false);
+      }
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      toast.error(error.response?.data?.message || "Failed to update status");
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      const response = await api.put(`/admin/users/${userId}/role`, {
+        role: newRole,
+      });
+      if (response.data.success) {
+        toast.success("User role updated successfully");
+        fetchUsers();
+        setShowModal(false);
+      }
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      toast.error(error.response?.data?.message || "Failed to update role");
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      const response = await api.delete(`/admin/users/${userId}`);
+      if (response.data.success) {
+        toast.success("User deleted successfully");
+        fetchUsers();
+        setShowModal(false);
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error(error.response?.data?.message || "Failed to delete user");
+    }
+  };
+
+  const openModal = (user, action) => {
+    setSelectedUser(user);
+    setModalAction(action);
+    setShowModal(true);
+  };
+
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
+      case "admin":
+        return "bg-purple-100 text-purple-800";
+      case "seller":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusBadgeColor = (isActive) => {
+    return isActive
+      ? "bg-green-100 text-green-800"
+      : "bg-red-100 text-red-800";
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const matchSearch =
+      !searchTerm ||
+      user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchRole = filterRole === "all" || user.role === filterRole;
+    const matchStatus =
+      filterStatus === "all" ||
+      (filterStatus === "active" && user.isActive) ||
+      (filterStatus === "inactive" && !user.isActive);
+    return matchSearch && matchRole && matchStatus;
+  });
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">User Management</h1>
+        <p className="text-gray-600">Manage all users in the system</p>
+      </div>
+
+      {/* Filters */}
+      <div className="card mb-6">
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="md:col-span-2">
+              <input
+                type="text"
+                placeholder="Search by username or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Role Filter */}
+            <div>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Roles</option>
+                <option value="user">User</option>
+                <option value="seller">Seller</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" className="btn-primary">
+            🔍 Search
+          </button>
+        </form>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="card bg-blue-50">
+          <p className="text-sm text-gray-600 mb-1">Total Users</p>
+          <p className="text-2xl font-bold text-blue-600">{users.length}</p>
+        </div>
+        <div className="card bg-green-50">
+          <p className="text-sm text-gray-600 mb-1">Active Users</p>
+          <p className="text-2xl font-bold text-green-600">
+            {users.filter((u) => u.isActive).length}
+          </p>
+        </div>
+        <div className="card bg-purple-50">
+          <p className="text-sm text-gray-600 mb-1">Sellers</p>
+          <p className="text-2xl font-bold text-purple-600">
+            {users.filter((u) => u.role === "seller").length}
+          </p>
+        </div>
+        <div className="card bg-yellow-50">
+          <p className="text-sm text-gray-600 mb-1">Admins</p>
+          <p className="text-2xl font-bold text-yellow-600">
+            {users.filter((u) => u.role === "admin").length}
+          </p>
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <div className="card overflow-hidden">
+        {filteredUsers.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">👥</div>
+            <h3 className="text-xl font-bold mb-2">No users found</h3>
+            <p className="text-gray-600">Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Joined
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                          {user.username?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="ml-3">
+                          <p className="font-semibold text-gray-900">
+                            {user.username}
+                          </p>
+                          {user.phone && (
+                            <p className="text-xs text-gray-500">{user.phone}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-sm text-gray-900">{user.email}</p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(
+                          user.role
+                        )}`}
+                      >
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(
+                          user.isActive
+                        )}`}
+                      >
+                        {user.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openModal(user, "status")}
+                          className={`px-3 py-1 rounded ${
+                            user.isActive
+                              ? "bg-red-100 text-red-700 hover:bg-red-200"
+                              : "bg-green-100 text-green-700 hover:bg-green-200"
+                          }`}
+                          title={user.isActive ? "Deactivate" : "Activate"}
+                        >
+                          {user.isActive ? "🔒" : "🔓"}
+                        </button>
+                        <button
+                          onClick={() => openModal(user, "role")}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
+                          title="Change Role"
+                        >
+                          👤
+                        </button>
+                        {user.role !== "admin" && (
+                          <button
+                            onClick={() => handleDeleteUser(user._id)}
+                            className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded"
+                            title="Delete User"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      {showModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-bold mb-4">
+              {modalAction === "status" && "Change User Status"}
+              {modalAction === "role" && "Change User Role"}
+            </h3>
+
+            {modalAction === "status" && (
+              <div>
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to{" "}
+                  {selectedUser.isActive ? "deactivate" : "activate"}{" "}
+                  <strong>{selectedUser.username}</strong>?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() =>
+                      handleStatusChange(selectedUser._id, selectedUser.isActive)
+                    }
+                    className="flex-1 btn-primary"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {modalAction === "role" && (
+              <div>
+                <p className="text-gray-600 mb-4">
+                  Select new role for <strong>{selectedUser.username}</strong>:
+                </p>
+                <div className="space-y-2 mb-4">
+                  {["user", "seller", "admin"].map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => handleRoleChange(selectedUser._id, role)}
+                      className={`w-full px-4 py-3 rounded-lg text-left font-semibold border-2 transition-colors ${
+                        selectedUser.role === role
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-blue-300"
+                      }`}
+                    >
+                      <span className="capitalize">{role}</span>
+                      {selectedUser.role === role && (
+                        <span className="ml-2 text-blue-600">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="w-full btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 const AdminProducts = () => (
   <div className="container-custom py-8">
     <h1 className="text-3xl font-bold">Admin Products</h1>
