@@ -1,20 +1,23 @@
 const express = require("express");
 const router = express.Router();
-const { protect, authorize } = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
+const {
+  getProfile,
+  updateProfile,
+  updatePassword,
+  getAddresses,
+  addAddress,
+} = require("../controllers/userController");
 
 router.use(protect);
-router.use(authorize("buyer"));
 
-// User routes will be implemented in userController
-router.get("/profile", (req, res) =>
-  res.json({ success: true, data: req.user })
-);
-router.put("/profile", (req, res) =>
-  res.json({ success: true, message: "Profile updated" })
-);
-router.get("/addresses", (req, res) => res.json({ success: true, data: [] }));
-router.post("/addresses", (req, res) =>
-  res.json({ success: true, message: "Address added" })
-);
+// Profile routes
+router.get("/profile", getProfile);
+router.put("/profile", updateProfile);
+router.put("/password", updatePassword);
+
+// Address routes
+router.get("/addresses", getAddresses);
+router.post("/addresses", addAddress);
 
 module.exports = router;
