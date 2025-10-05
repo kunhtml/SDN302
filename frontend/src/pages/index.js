@@ -246,11 +246,13 @@ const Products = () => {
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState("");
+  const [addingToCart, setAddingToCart] = useState(false);
 
   useEffect(() => {
     fetchProduct();
@@ -282,6 +284,36 @@ const ProductDetail = () => {
       setError(err.response?.data?.message || "Failed to fetch product");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      toast.info("Please login to add items to cart");
+      navigate("/login");
+      return;
+    }
+
+    if (product.quantity === 0) {
+      toast.error("Product is out of stock");
+      return;
+    }
+
+    try {
+      setAddingToCart(true);
+      const response = await api.post("/cart/items", {
+        productId: product._id,
+        quantity: quantity,
+      });
+
+      if (response.data.success) {
+        toast.success("Added to cart successfully!");
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error(error.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setAddingToCart(false);
     }
   };
 
@@ -519,7 +551,17 @@ const ProductDetail = () => {
               <button className="btn-primary flex-1">Place Bid</button>
             ) : (
               <>
-                <button className="btn-primary flex-1">Add to Cart</button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={addingToCart || product.quantity === 0}
+                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addingToCart
+                    ? "Adding..."
+                    : product.quantity === 0
+                    ? "Out of Stock"
+                    : "Add to Cart"}
+                </button>
                 <button className="btn-secondary">Buy Now</button>
               </>
             )}
@@ -550,11 +592,327 @@ const ProductDetail = () => {
     </div>
   );
 };
-const Cart = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Cart Page</h1>
-  </div>
-);
+const Cart = () => {
+  const navigate = useNavigate();
+  const [cart, setCart] = useState({ items: [], totalItems: 0, subtotal: 0 });
+  const [loading, setLoading] = useState(true);
+  const [updatingItems, setUpdatingItems] = useState({});
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/cart");
+      if (response.data.success) {
+        setCart(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch cart");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateQuantity = async (itemId, newQuantity) => {
+    if (newQuantity < 1) return;
+
+    try {
+      setUpdatingItems((prev) => ({ ...prev, [itemId]: true }));
+      const response = await api.put(`/cart/items/${itemId}`, {
+        quantity: newQuantity,
+      });
+      if (response.data.success) {
+        setCart(response.data.data);
+        toast.success("Cart updated");
+      }
+    } catch (error) {
+      console.error("Error updating cart:", error);
+      toast.error(error.response?.data?.message || "Failed to update cart");
+    } finally {
+      setUpdatingItems((prev) => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const removeItem = async (itemId) => {
+    if (!window.confirm("Remove this item from cart?")) return;
+
+    try {
+      setUpdatingItems((prev) => ({ ...prev, [itemId]: true }));
+      const response = await api.delete(`/cart/items/${itemId}`);
+      if (response.data.success) {
+        setCart(response.data.data);
+        toast.success("Item removed from cart");
+      }
+    } catch (error) {
+      console.error("Error removing item:", error);
+      toast.error(error.response?.data?.message || "Failed to remove item");
+    } finally {
+      setUpdatingItems((prev) => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const clearCart = async () => {
+    if (!window.confirm("Clear all items from cart?")) return;
+
+    try {
+      setLoading(true);
+      const response = await api.delete("/cart");
+      if (response.data.success) {
+        setCart(response.data.data);
+        toast.success("Cart cleared");
+      }
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      toast.error(error.response?.data?.message || "Failed to clear cart");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cart.items.length === 0) {
+    return (
+      <div className="container-custom py-8">
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">🛒</div>
+          <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+          <p className="text-gray-600 mb-6">
+            Start adding items to your cart to see them here
+          </p>
+          <Link to="/products" className="btn-primary inline-block">
+            Continue Shopping
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const shipping = cart.subtotal > 50 ? 0 : 5.99;
+  const tax = cart.subtotal * 0.1; // 10% tax
+  const total = cart.subtotal + shipping + tax;
+
+  return (
+    <div className="container-custom py-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Shopping Cart</h1>
+        <button
+          onClick={clearCart}
+          className="text-red-600 hover:text-red-800 font-semibold"
+        >
+          Clear Cart
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Cart Items */}
+        <div className="lg:col-span-2">
+          <div className="card">
+            <div className="divide-y">
+              {cart.items.map((item) => {
+                const product = item.product;
+                if (!product) return null;
+
+                const images = product.images ? product.images.split(",") : [];
+                const firstImage = images[0] || "";
+                const isUpdating = updatingItems[item._id];
+
+                return (
+                  <div
+                    key={item._id}
+                    className={`p-4 ${isUpdating ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex gap-4">
+                      {/* Product Image */}
+                      <Link
+                        to={`/products/${product._id}`}
+                        className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0"
+                      >
+                        {firstImage ? (
+                          <img
+                            src={firstImage}
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            No Image
+                          </div>
+                        )}
+                      </Link>
+
+                      {/* Product Info */}
+                      <div className="flex-1">
+                        <Link
+                          to={`/products/${product._id}`}
+                          className="font-semibold text-lg hover:text-blue-600 block mb-1"
+                        >
+                          {product.title}
+                        </Link>
+                        <div className="text-sm text-gray-600 mb-2">
+                          <span className="capitalize">{product.condition}</span>
+                          {product.brand && (
+                            <span> • Brand: {product.brand}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-2xl font-bold text-blue-600">
+                            ${product.price?.toFixed(2)}
+                          </div>
+                          {product.quantity !== undefined && (
+                            <div className="text-sm text-gray-600">
+                              {product.quantity === 0 ? (
+                                <span className="text-red-600 font-semibold">
+                                  Out of Stock
+                                </span>
+                              ) : product.quantity < 10 ? (
+                                <span className="text-orange-600">
+                                  Only {product.quantity} left
+                                </span>
+                              ) : (
+                                <span className="text-green-600">In Stock</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-4 mt-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                updateQuantity(item._id, item.quantity - 1)
+                              }
+                              disabled={item.quantity <= 1 || isUpdating}
+                              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max={product.quantity || 999}
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 1;
+                                const maxStock = product.quantity || 999;
+                                const validQuantity = Math.min(
+                                  Math.max(1, value),
+                                  maxStock
+                                );
+                                updateQuantity(item._id, validQuantity);
+                              }}
+                              disabled={isUpdating}
+                              className="w-16 text-center border border-gray-300 rounded px-2 py-1 disabled:bg-gray-100"
+                            />
+                            <button
+                              onClick={() =>
+                                updateQuantity(item._id, item.quantity + 1)
+                              }
+                              disabled={
+                                item.quantity >= (product.quantity || 999) ||
+                                isUpdating
+                              }
+                              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          <div className="text-lg font-semibold">
+                            ${(product.price * item.quantity).toFixed(2)}
+                          </div>
+
+                          <button
+                            onClick={() => removeItem(item._id)}
+                            disabled={isUpdating}
+                            className="ml-auto text-red-600 hover:text-red-800 disabled:opacity-50"
+                          >
+                            🗑️ Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-4 border-t">
+              <Link
+                to="/products"
+                className="text-blue-600 hover:text-blue-800 font-semibold"
+              >
+                ← Continue Shopping
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Order Summary */}
+        <div className="lg:col-span-1">
+          <div className="card sticky top-4">
+            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal ({cart.totalItems} items)</span>
+                <span>${cart.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Shipping</span>
+                <span>
+                  {shipping === 0 ? (
+                    <span className="text-green-600 font-semibold">FREE</span>
+                  ) : (
+                    `$${shipping.toFixed(2)}`
+                  )}
+                </span>
+              </div>
+              {shipping > 0 && (
+                <div className="text-sm text-gray-500">
+                  💡 Free shipping on orders over $50
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>Tax (10%)</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-3 flex justify-between text-xl font-bold">
+                <span>Total</span>
+                <span className="text-blue-600">${total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate("/checkout")}
+              className="btn-primary w-full mb-3"
+            >
+              Proceed to Checkout
+            </button>
+
+            <div className="text-center text-sm text-gray-600">
+              <span>🔒 Secure Checkout</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Checkout = () => (
   <div className="container-custom py-8">
     <h1 className="text-3xl font-bold">Checkout Page</h1>
