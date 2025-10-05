@@ -84,7 +84,7 @@ const Header = () => {
                 </Link>
 
                 <div className="relative" ref={dropdownRef}>
-                  <button 
+                  <button
                     onClick={toggleDropdown}
                     className="flex items-center space-x-2 hover:text-blue-600"
                   >
