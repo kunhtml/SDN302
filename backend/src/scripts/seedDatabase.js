@@ -656,13 +656,16 @@ const seedFeedback = async (sellers) => {
 const seedOrders = async (products, buyers, sellers) => {
   try {
     // Ensure we have products with populated seller info
-    const populatedProducts = await Product.find({ _id: { $in: products.slice(0, 6).map(p => p._id) } }).populate('sellerId');
-    
+    const populatedProducts = await Product.find({
+      _id: { $in: products.slice(0, 6).map((p) => p._id) },
+    }).populate("sellerId");
+
     const orders = [
       {
         buyerId: buyers[0]._id,
         orderDate: new Date(),
-        totalPrice: populatedProducts[0].price + 10 + (populatedProducts[0].price * 0.1),
+        totalPrice:
+          populatedProducts[0].price + 10 + populatedProducts[0].price * 0.1,
         status: "pending",
         items: [
           {
@@ -692,7 +695,8 @@ const seedOrders = async (products, buyers, sellers) => {
       {
         buyerId: buyers[1]._id,
         orderDate: new Date(Date.now() - 86400000), // 1 day ago
-        totalPrice: populatedProducts[2].price + 15 + (populatedProducts[2].price * 0.1),
+        totalPrice:
+          populatedProducts[2].price + 15 + populatedProducts[2].price * 0.1,
         status: "processing",
         items: [
           {
@@ -726,7 +730,10 @@ const seedOrders = async (products, buyers, sellers) => {
       {
         buyerId: buyers[0]._id,
         orderDate: new Date(Date.now() - 172800000), // 2 days ago
-        totalPrice: (populatedProducts[3].price * 2) + 5 + (populatedProducts[3].price * 2 * 0.1),
+        totalPrice:
+          populatedProducts[3].price * 2 +
+          5 +
+          populatedProducts[3].price * 2 * 0.1,
         status: "shipped",
         items: [
           {
@@ -759,7 +766,8 @@ const seedOrders = async (products, buyers, sellers) => {
       {
         buyerId: buyers[1]._id,
         orderDate: new Date(Date.now() - 259200000), // 3 days ago
-        totalPrice: populatedProducts[5].price + 10 + (populatedProducts[5].price * 0.1),
+        totalPrice:
+          populatedProducts[5].price + 10 + populatedProducts[5].price * 0.1,
         status: "delivered",
         items: [
           {
@@ -821,7 +829,7 @@ const seedOrders = async (products, buyers, sellers) => {
       const order = await Order.create(orderData);
       createdOrders.push(order);
       // Small delay to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
     console.log("✅ Orders seeded successfully!");
     return createdOrders;
