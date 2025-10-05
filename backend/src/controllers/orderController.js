@@ -8,7 +8,7 @@ const logger = require("../config/logger");
 exports.getOrders = async (req, res) => {
   try {
     const query = { userId: req.user._id };
-    
+
     const orders = await Order.find(query)
       .populate("products.productId", "title images price")
       .populate("sellerId", "username email")
@@ -37,8 +37,8 @@ exports.getSellerOrders = async (req, res) => {
   try {
     const { status } = req.query;
     const query = { sellerId: req.user._id };
-    
-    if (status && status !== 'all') {
+
+    if (status && status !== "all") {
       query.status = status;
     }
 
@@ -160,7 +160,7 @@ exports.createOrder = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
