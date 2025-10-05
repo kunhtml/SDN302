@@ -7,7 +7,7 @@ const logger = require("../config/logger");
 exports.getStore = async (req, res) => {
   try {
     const store = await Store.findById(req.params.id)
-      .populate("ownerId", "username email avatarURL")
+      .populate("sellerId", "username email avatarURL")
       .lean();
 
     if (!store) {
@@ -36,13 +36,13 @@ exports.getStore = async (req, res) => {
 // @access  Private (Seller)
 exports.getMyStore = async (req, res) => {
   try {
-    let store = await Store.findOne({ ownerId: req.user._id }).lean();
+    let store = await Store.findOne({ sellerId: req.user._id }).lean();
 
     // If store doesn't exist, create a default one
     if (!store) {
       store = await Store.create({
-        ownerId: req.user._id,
-        name: `${req.user.username}'s Store`,
+        sellerId: req.user._id,
+        storeName: `${req.user.username}'s Store`,
         description: "Welcome to my store!",
         email: req.user.email,
       });
@@ -68,7 +68,7 @@ exports.getMyStore = async (req, res) => {
 exports.createStore = async (req, res) => {
   try {
     // Check if user already has a store
-    const existingStore = await Store.findOne({ ownerId: req.user._id });
+    const existingStore = await Store.findOne({ sellerId: req.user._id });
     
     if (existingStore) {
       return res.status(400).json({
@@ -79,7 +79,7 @@ exports.createStore = async (req, res) => {
 
     const store = await Store.create({
       ...req.body,
-      ownerId: req.user._id,
+      sellerId: req.user._id,
     });
 
     res.status(201).json({
@@ -102,7 +102,7 @@ exports.createStore = async (req, res) => {
 // @access  Private (Seller)
 exports.updateStore = async (req, res) => {
   try {
-    let store = await Store.findOne({ ownerId: req.user._id });
+    let store = await Store.findOne({ sellerId: req.user._id });
 
     if (!store) {
       return res.status(404).json({
@@ -113,10 +113,10 @@ exports.updateStore = async (req, res) => {
 
     // Update fields
     const allowedFields = [
-      "name",
+      "storeName",
       "description",
       "logo",
-      "banner",
+      "bannerImageURL",
       "phone",
       "email",
       "address",
@@ -124,6 +124,8 @@ exports.updateStore = async (req, res) => {
       "state",
       "country",
       "zipCode",
+      "socialLinks",
+      "businessInfo",
     ];
 
     allowedFields.forEach((field) => {
@@ -170,7 +172,7 @@ exports.getStores = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const stores = await Store.find(query)
-      .populate("ownerId", "username email")
+      .populate("sellerId", "username email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
