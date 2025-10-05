@@ -17,6 +17,36 @@ const storeSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    phone: {
+      type: String,
+      trim: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    state: {
+      type: String,
+      trim: true,
+    },
+    country: {
+      type: String,
+      trim: true,
+      default: "Vietnam",
+    },
+    zipCode: {
+      type: String,
+      trim: true,
+    },
     bannerImageURL: {
       type: String,
       default: "https://via.placeholder.com/1200x300",
