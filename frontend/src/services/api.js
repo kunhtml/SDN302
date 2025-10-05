@@ -2,7 +2,8 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 // Create axios instance
 const api = axios.create({
@@ -15,7 +16,9 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    // Check both localStorage and sessionStorage for token
+    const token =
+      localStorage.getItem("token") || sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -35,7 +38,8 @@ api.interceptors.response.use(
 
       // Handle unauthorized
       if (status === 401) {
-        const token = localStorage.getItem("token");
+        const token =
+          localStorage.getItem("token") || sessionStorage.getItem("token");
         if (token) {
           // Lazy import to avoid circular dependency
           const { store } = await import("../redux/store");

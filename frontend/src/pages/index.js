@@ -6182,3 +6182,6 @@ export {
   AdminDisputes,
   NotFound,
 };
+
+// Import AdminUserDetail from separate file
+export { default as AdminUserDetail } from "./Admin/AdminUserDetail";

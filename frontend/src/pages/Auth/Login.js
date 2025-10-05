@@ -181,7 +181,14 @@ const Login = () => {
           </div>
 
           {/* Form */}
-          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(e); }} noValidate>
+          <form
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit(e);
+            }}
+            noValidate
+          >
             {/* Error Alert - Enhanced */}
             {error && showError && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg animate-shake relative">

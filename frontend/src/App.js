@@ -29,6 +29,7 @@ import {
   SellerStore,
   AdminDashboard,
   AdminUsers,
+  AdminUserDetail,
   AdminProducts,
   AdminOrders,
   AdminDisputes,
@@ -74,12 +75,22 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
-          <Route path="register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
+          <Route
+            path="login"
+            element={!isAuthenticated ? <Login /> : <Navigate to="/" />}
+          />
+          <Route
+            path="register"
+            element={!isAuthenticated ? <Register /> : <Navigate to="/" />}
+          />
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductDetail />} />
 
-          <Route element={<ProtectedRoute allowedRoles={["buyer", "seller", "admin"]} />}>
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["buyer", "seller", "admin"]} />
+            }
+          >
             <Route path="cart" element={<Cart />} />
             <Route path="checkout" element={<Checkout />} />
             <Route path="orders" element={<Orders />} />
@@ -89,7 +100,10 @@ function App() {
             <Route path="chat/:conversationId" element={<Chat />} />
           </Route>
 
-          <Route path="seller" element={<ProtectedRoute allowedRoles={["seller"]} />}>
+          <Route
+            path="seller"
+            element={<ProtectedRoute allowedRoles={["seller"]} />}
+          >
             <Route index element={<SellerDashboard />} />
             <Route path="products" element={<SellerProducts />} />
             <Route path="products/new" element={<AddProduct />} />
@@ -98,9 +112,13 @@ function App() {
             <Route path="store" element={<SellerStore />} />
           </Route>
 
-          <Route path="admin" element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route
+            path="admin"
+            element={<ProtectedRoute allowedRoles={["admin"]} />}
+          >
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="users/:id" element={<AdminUserDetail />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="disputes" element={<AdminDisputes />} />

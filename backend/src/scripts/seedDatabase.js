@@ -55,7 +55,43 @@ const clearDatabase = async () => {
 // Seed Users
 const seedUsers = async () => {
   try {
-    const users = [];
+    // Hash passwords manually since insertMany doesn't trigger pre-save hooks
+    const hashedPassword1 = await bcrypt.hash("admin123", 10);
+    const hashedPassword2 = await bcrypt.hash("seller123", 10);
+    const hashedPassword3 = await bcrypt.hash("buyer123", 10);
+
+    const users = [
+      {
+        email: "admin@ebay.com",
+        password: hashedPassword1,
+        firstName: "Admin",
+        lastName: "User",
+        phone: "0123456789",
+        role: "admin",
+        isActive: true,
+        emailVerified: true,
+      },
+      {
+        email: "seller1@ebay.com",
+        password: hashedPassword2,
+        firstName: "John",
+        lastName: "Seller",
+        phone: "0123456780",
+        role: "seller",
+        isActive: true,
+        emailVerified: true,
+      },
+      {
+        email: "buyer1@ebay.com",
+        password: hashedPassword3,
+        firstName: "Jane",
+        lastName: "Buyer",
+        phone: "0987654321",
+        role: "buyer",
+        isActive: true,
+        emailVerified: true,
+      },
+    ];
 
     const createdUsers = await User.insertMany(users);
     console.log("✅ Users seeded successfully!");
@@ -230,7 +266,9 @@ const seedDatabase = async () => {
     console.log(`   - Feedback records: 0`);
 
     console.log("\n👥 Test Accounts:");
-    console.log("   No demo accounts created. Database is empty.");
+    console.log("   📧 Admin:  admin@ebay.com  | 🔑 Password: admin123");
+    console.log("   📧 Seller: seller1@ebay.com | 🔑 Password: seller123");
+    console.log("   📧 Buyer:  buyer1@ebay.com  | 🔑 Password: buyer123");
 
     process.exit(0);
   } catch (error) {
