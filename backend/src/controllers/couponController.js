@@ -52,7 +52,10 @@ exports.createCoupon = async (req, res, next) => {
     }
 
     // Validate discount value
-    if (discountType === "percentage" && (discountValue <= 0 || discountValue > 100)) {
+    if (
+      discountType === "percentage" &&
+      (discountValue <= 0 || discountValue > 100)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Percentage discount must be between 0 and 100",
@@ -162,7 +165,11 @@ exports.updateCoupon = async (req, res, next) => {
     }
 
     // Validate discount value if provided
-    if (discountType === "percentage" && discountValue && (discountValue <= 0 || discountValue > 100)) {
+    if (
+      discountType === "percentage" &&
+      discountValue &&
+      (discountValue <= 0 || discountValue > 100)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Percentage discount must be between 0 and 100",
@@ -212,15 +219,20 @@ exports.updateCoupon = async (req, res, next) => {
       req.params.id,
       {
         code: code ? code.toUpperCase() : coupon.code,
-        description: description !== undefined ? description : coupon.description,
+        description:
+          description !== undefined ? description : coupon.description,
         discountType: discountType || coupon.discountType,
-        discountValue: discountValue !== undefined ? discountValue : coupon.discountValue,
-        minPurchaseAmount: minPurchase !== undefined ? minPurchase : coupon.minPurchaseAmount,
-        maxDiscountAmount: maxDiscount !== undefined ? maxDiscount : coupon.maxDiscountAmount,
+        discountValue:
+          discountValue !== undefined ? discountValue : coupon.discountValue,
+        minPurchaseAmount:
+          minPurchase !== undefined ? minPurchase : coupon.minPurchaseAmount,
+        maxDiscountAmount:
+          maxDiscount !== undefined ? maxDiscount : coupon.maxDiscountAmount,
         startDate: startDate || coupon.startDate,
         endDate: endDate || coupon.endDate,
         maxUsage: maxUsage !== undefined ? maxUsage : coupon.maxUsage,
-        applicableProducts: productIds !== undefined ? productIds : coupon.applicableProducts,
+        applicableProducts:
+          productIds !== undefined ? productIds : coupon.applicableProducts,
       },
       { new: true, runValidators: true }
     ).populate("applicableProducts", "title images");
@@ -333,7 +345,9 @@ exports.validateCoupon = async (req, res, next) => {
     // Check product applicability
     if (coupon.applicableProducts.length > 0 && productIds) {
       const requestedProductIds = productIds.split(",");
-      const applicableProductIds = coupon.applicableProducts.map((p) => p._id.toString());
+      const applicableProductIds = coupon.applicableProducts.map((p) =>
+        p._id.toString()
+      );
       const hasApplicableProduct = requestedProductIds.some((id) =>
         applicableProductIds.includes(id)
       );

@@ -1867,6 +1867,241 @@ const OrderDetail = () => {
     }
   };
 
+  const handlePrintShippingLabel = () => {
+    // Create a new window for printing
+    const printWindow = window.open("", "_blank");
+
+    const shippingLabelHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Shipping Label - Order #${
+          order.orderNumber || order._id.slice(-8)
+        }</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+          .shipping-label {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 3px solid #000;
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+          }
+          .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+          }
+          .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: #666;
+          }
+          .info-row {
+            margin: 8px 0;
+            font-size: 16px;
+          }
+          .info-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 150px;
+          }
+          .barcode {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            margin: 20px 0;
+          }
+          .barcode-number {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            font-family: monospace;
+          }
+          .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+          }
+          .priority {
+            background: #ffeb3b;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 20px;
+          }
+          @media print {
+            body {
+              padding: 0;
+            }
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="shipping-label">
+          <div class="header">
+            <h1>🚚 SHIPPING LABEL</h1>
+            <p style="font-size: 18px; margin-top: 10px;">Express Delivery Service</p>
+          </div>
+
+          <div class="priority">
+            📦 STANDARD SHIPPING
+          </div>
+
+          <div class="barcode">
+            <div class="barcode-number">${order.orderNumber || order._id}</div>
+            <p style="margin-top: 10px; font-size: 12px;">Order ID: ${order._id.slice(
+              -8
+            )}</p>
+          </div>
+
+          <div class="grid">
+            <div class="section">
+              <div class="section-title">📤 Ship From</div>
+              <div class="info-row">
+                <div class="info-label">Seller:</div>
+                <div>${order.items?.[0]?.seller?.username || "Store Name"}</div>
+              </div>
+              <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div>${
+                  order.items?.[0]?.seller?.email || "store@example.com"
+                }</div>
+              </div>
+              <div class="info-row">
+                <div class="info-label">Phone:</div>
+                <div>${
+                  order.items?.[0]?.seller?.phone || "+1 (555) 000-0000"
+                }</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">📥 Ship To</div>
+              <div class="info-row">
+                <div class="info-label">Name:</div>
+                <div>${order.shippingAddress?.fullName || "N/A"}</div>
+              </div>
+              <div class="info-row">
+                <div class="info-label">Phone:</div>
+                <div>${order.shippingAddress?.phone || "N/A"}</div>
+              </div>
+              <div class="info-row">
+                <div class="info-label">Address:</div>
+                <div>
+                  ${order.shippingAddress?.street || ""}<br>
+                  ${order.shippingAddress?.city || ""}, ${
+      order.shippingAddress?.state || ""
+    } ${order.shippingAddress?.zipCode || ""}<br>
+                  ${order.shippingAddress?.country || ""}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">📦 Package Information</div>
+            <div class="info-row">
+              <span class="info-label">Order Date:</span>
+              ${new Date(order.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </div>
+            <div class="info-row">
+              <span class="info-label">Items:</span>
+              ${order.items?.length || 0} item(s)
+            </div>
+            <div class="info-row">
+              <span class="info-label">Weight:</span>
+              Estimated 2-5 kg
+            </div>
+            <div class="info-row">
+              <span class="info-label">Payment:</span>
+              ${order.paymentMethod?.toUpperCase() || "N/A"} - ${
+      order.paymentStatus?.toUpperCase() || "N/A"
+    }
+            </div>
+            ${
+              order.trackingNumber
+                ? `
+            <div class="info-row">
+              <span class="info-label">Tracking:</span>
+              ${order.trackingNumber}
+            </div>
+            `
+                : ""
+            }
+          </div>
+
+          <div class="section">
+            <div class="section-title">📋 Order Details</div>
+            ${order.items
+              ?.map(
+                (item, idx) => `
+              <div class="info-row">
+                ${idx + 1}. ${item.name} x ${item.quantity} - $${(
+                  item.price * item.quantity
+                ).toFixed(2)}
+              </div>
+            `
+              )
+              .join("")}
+            <div class="info-row" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
+              <span class="info-label">Total:</span>
+              <strong>$${order.totalPrice?.toFixed(2) || "0.00"}</strong>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ccc;">
+            <p style="font-size: 12px; color: #666;">
+              This is a computer-generated shipping label. No signature required.<br>
+              For support, contact: support@ecommerce.com | +1 (555) 123-4567<br>
+              Generated on: ${new Date().toLocaleString()}
+            </p>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 20px;">
+            <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+              🖨️ Print Label
+            </button>
+            <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+              ✖ Close
+            </button>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(shippingLabelHTML);
+    printWindow.document.close();
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -1964,6 +2199,12 @@ const OrderDetail = () => {
                 >
                   Payment: {order.paymentStatus}
                 </span>
+                <button
+                  onClick={handlePrintShippingLabel}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                >
+                  🖨️ Print Shipping Label
+                </button>
               </div>
             </div>
 
@@ -3681,8 +3922,7 @@ const SellerCoupons = () => {
 
     if (start && now < start) return false;
     if (end && now > end) return false;
-    if (coupon.maxUsage && coupon.usedCount >= coupon.maxUsage)
-      return false;
+    if (coupon.maxUsage && coupon.usedCount >= coupon.maxUsage) return false;
 
     return coupon.isActive;
   };
@@ -4526,9 +4766,15 @@ const AdminDashboard = () => {
         <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-blue-600 font-semibold mb-1">Total Users</p>
-              <h3 className="text-3xl font-bold text-blue-900">{stats.totalUsers}</h3>
-              <p className="text-xs text-blue-600 mt-1">{stats.activeUsers} active</p>
+              <p className="text-sm text-blue-600 font-semibold mb-1">
+                Total Users
+              </p>
+              <h3 className="text-3xl font-bold text-blue-900">
+                {stats.totalUsers}
+              </h3>
+              <p className="text-xs text-blue-600 mt-1">
+                {stats.activeUsers} active
+              </p>
             </div>
             <div className="text-4xl">👥</div>
           </div>
@@ -4538,8 +4784,12 @@ const AdminDashboard = () => {
         <div className="card bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-green-600 font-semibold mb-1">Total Products</p>
-              <h3 className="text-3xl font-bold text-green-900">{stats.totalProducts}</h3>
+              <p className="text-sm text-green-600 font-semibold mb-1">
+                Total Products
+              </p>
+              <h3 className="text-3xl font-bold text-green-900">
+                {stats.totalProducts}
+              </h3>
               <p className="text-xs text-green-600 mt-1">Listed items</p>
             </div>
             <div className="text-4xl">📦</div>
@@ -4550,8 +4800,12 @@ const AdminDashboard = () => {
         <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-600 font-semibold mb-1">Total Orders</p>
-              <h3 className="text-3xl font-bold text-purple-900">{stats.totalOrders}</h3>
+              <p className="text-sm text-purple-600 font-semibold mb-1">
+                Total Orders
+              </p>
+              <h3 className="text-3xl font-bold text-purple-900">
+                {stats.totalOrders}
+              </h3>
               <p className="text-xs text-purple-600 mt-1">All time</p>
             </div>
             <div className="text-4xl">🛒</div>
@@ -4562,8 +4816,12 @@ const AdminDashboard = () => {
         <div className="card bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-yellow-600 font-semibold mb-1">Total Revenue</p>
-              <h3 className="text-3xl font-bold text-yellow-900">${stats.totalRevenue?.toFixed(2) || '0.00'}</h3>
+              <p className="text-sm text-yellow-600 font-semibold mb-1">
+                Total Revenue
+              </p>
+              <h3 className="text-3xl font-bold text-yellow-900">
+                ${stats.totalRevenue?.toFixed(2) || "0.00"}
+              </h3>
               <p className="text-xs text-yellow-600 mt-1">Platform earnings</p>
             </div>
             <div className="text-4xl">💰</div>
@@ -4574,8 +4832,12 @@ const AdminDashboard = () => {
         <div className="card bg-gradient-to-br from-red-50 to-red-100 border-red-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-red-600 font-semibold mb-1">Pending Disputes</p>
-              <h3 className="text-3xl font-bold text-red-900">{stats.pendingDisputes}</h3>
+              <p className="text-sm text-red-600 font-semibold mb-1">
+                Pending Disputes
+              </p>
+              <h3 className="text-3xl font-bold text-red-900">
+                {stats.pendingDisputes}
+              </h3>
               <p className="text-xs text-red-600 mt-1">Needs attention</p>
             </div>
             <div className="text-4xl">⚠️</div>
@@ -4584,7 +4846,9 @@ const AdminDashboard = () => {
 
         {/* Quick Actions */}
         <div className="card bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
-          <p className="text-sm text-indigo-600 font-semibold mb-3">Quick Actions</p>
+          <p className="text-sm text-indigo-600 font-semibold mb-3">
+            Quick Actions
+          </p>
           <div className="space-y-2">
             <button
               onClick={() => navigate("/admin/users")}
@@ -4633,7 +4897,9 @@ const AdminDashboard = () => {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-sm">${order.totalPrice?.toFixed(2)}</p>
+                    <p className="font-bold text-sm">
+                      ${order.totalPrice?.toFixed(2)}
+                    </p>
                     <span
                       className={`text-xs px-2 py-1 rounded ${
                         order.status === "delivered"
@@ -4813,9 +5079,7 @@ const AdminUsers = () => {
   };
 
   const getStatusBadgeColor = (isActive) => {
-    return isActive
-      ? "bg-green-100 text-green-800"
-      : "bg-red-100 text-red-800";
+    return isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
   };
 
   const filteredUsers = users.filter((user) => {
@@ -4969,7 +5233,9 @@ const AdminUsers = () => {
                             {user.username}
                           </p>
                           {user.phone && (
-                            <p className="text-xs text-gray-500">{user.phone}</p>
+                            <p className="text-xs text-gray-500">
+                              {user.phone}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -5056,7 +5322,10 @@ const AdminUsers = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() =>
-                      handleStatusChange(selectedUser._id, selectedUser.isActive)
+                      handleStatusChange(
+                        selectedUser._id,
+                        selectedUser.isActive
+                      )
                     }
                     className="flex-1 btn-primary"
                   >
@@ -5512,29 +5781,26 @@ const AdminProducts = () => {
                   </div>
                 )}
 
-                {selectedProduct.tags &&
-                  selectedProduct.tags.length > 0 && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">Tags</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProduct.tags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+                {selectedProduct.tags && selectedProduct.tags.length > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Tags</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProduct.tags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
                 <div className="text-sm text-gray-500">
                   <p>
                     Created:{" "}
-                    {new Date(
-                      selectedProduct.createdAt
-                    ).toLocaleDateString()}
+                    {new Date(selectedProduct.createdAt).toLocaleDateString()}
                   </p>
                   <p>Product ID: {selectedProduct._id}</p>
                 </div>
