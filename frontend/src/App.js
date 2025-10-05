@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { checkAuth } from "./redux/slices/authSlice";
+import { fetchCart } from "./redux/slices/cartSlice";
 
 // Layout
 import Layout from "./components/Layout/Layout";
@@ -40,6 +41,12 @@ function App() {
   useEffect(() => {
     dispatch(checkAuth());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchCart());
+    }
+  }, [isAuthenticated, dispatch]);
 
   if (loading) {
     return (
