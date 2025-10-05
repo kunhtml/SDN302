@@ -69,7 +69,7 @@ exports.createStore = async (req, res) => {
   try {
     // Check if user already has a store
     const existingStore = await Store.findOne({ sellerId: req.user._id });
-    
+
     if (existingStore) {
       return res.status(400).json({
         success: false,
