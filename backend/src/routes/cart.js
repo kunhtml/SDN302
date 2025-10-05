@@ -1,27 +1,23 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/auth");
+const {
+  getCart,
+  addToCart,
+  updateCartItem,
+  removeFromCart,
+  clearCart,
+} = require("../controllers/cartController");
 
 router.use(protect);
 
-router.get("/", (req, res) => {
-  res.json({ success: true, data: { items: [], totalItems: 0 } });
-});
+router.route("/").get(getCart).delete(clearCart);
 
-router.post("/items", (req, res) => {
-  res.json({ success: true, message: "Item added to cart" });
-});
+router.post("/items", addToCart);
 
-router.put("/items/:itemId", (req, res) => {
-  res.json({ success: true, message: "Cart item updated" });
-});
-
-router.delete("/items/:itemId", (req, res) => {
-  res.json({ success: true, message: "Item removed from cart" });
-});
-
-router.delete("/", (req, res) => {
-  res.json({ success: true, message: "Cart cleared" });
-});
+router
+  .route("/items/:itemId")
+  .put(updateCartItem)
+  .delete(removeFromCart);
 
 module.exports = router;
