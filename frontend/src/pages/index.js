@@ -438,23 +438,49 @@ const ProductDetail = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100"
+                  disabled={quantity <= 1}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   -
                 </button>
                 <input
                   type="number"
                   min="1"
+                  max={product.quantity || 999}
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 1;
+                    const maxStock = product.quantity || 999;
+                    const validQuantity = Math.min(Math.max(1, value), maxStock);
+                    setQuantity(validQuantity);
+                  }}
+                  onBlur={(e) => {
+                    // Auto-correct on blur if user manually typed invalid value
+                    const value = parseInt(e.target.value) || 1;
+                    const maxStock = product.quantity || 999;
+                    const validQuantity = Math.min(Math.max(1, value), maxStock);
+                    if (value !== validQuantity) {
+                      setQuantity(validQuantity);
+                    }
+                  }}
                   className="w-20 text-center border border-gray-300 rounded px-2 py-1"
                 />
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100"
+                  onClick={() => setQuantity(Math.min(quantity + 1, product.quantity || 999))}
+                  disabled={quantity >= (product.quantity || 999)}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   +
                 </button>
+              </div>
+              <div className="mt-2 text-sm text-gray-600">
+                {product.quantity ? (
+                  <span className={product.quantity < 10 ? "text-red-600 font-semibold" : ""}>
+                    {product.quantity} {product.quantity === 1 ? "item" : "items"} available
+                  </span>
+                ) : (
+                  <span className="text-gray-500">Stock information unavailable</span>
+                )}
               </div>
             </div>
           )}
@@ -546,9 +572,9 @@ const SellerDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch seller's products
+      // Fetch seller's products (show all recent products)
       const productsRes = await api.get('/products', {
-        params: { sellerId: user?._id, limit: 5 }
+        params: { sellerId: user?._id, limit: 100 }
       });
       
       if (productsRes.data.success) {
@@ -704,6 +730,7 @@ const SellerDashboard = () => {
                 <tr>
                   <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Product</th>
                   <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Price</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Stock</th>
                   <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Views</th>
                   <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Sold</th>
                   <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Status</th>
@@ -727,6 +754,15 @@ const SellerDashboard = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">${product.price?.toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`font-medium ${
+                        product.quantity === 0 ? 'text-red-600' : 
+                        product.quantity < 10 ? 'text-yellow-600' : 
+                        'text-green-600'
+                      }`}>
+                        {product.quantity || 0}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{product.views || 0}</td>
                     <td className="px-4 py-3 text-gray-700">{product.sold || 0}</td>
                     <td className="px-4 py-3">
