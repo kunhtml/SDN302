@@ -31,15 +31,18 @@ const Products = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log("Fetching products with params:", Object.fromEntries(searchParams));
-      
+
+      console.log(
+        "Fetching products with params:",
+        Object.fromEntries(searchParams)
+      );
+
       const response = await api.get("/products", {
         params: Object.fromEntries(searchParams),
       });
-      
+
       console.log("Products response:", response.data);
-      
+
       if (response.data.success) {
         setProducts(response.data.data || []);
         setPagination({
@@ -57,7 +60,7 @@ const Products = () => {
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const applyFilters = () => {
@@ -73,7 +76,7 @@ const Products = () => {
   const handleSortChange = (value) => {
     const newFilters = { ...filters, sort: value };
     setFilters(newFilters);
-    
+
     const newParams = new URLSearchParams(searchParams);
     newParams.set("sort", value);
     setSearchParams(newParams);
@@ -86,7 +89,7 @@ const Products = () => {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       applyFilters();
     }
   };
@@ -154,10 +157,7 @@ const Products = () => {
             onKeyPress={handleKeyPress}
             className="input"
           />
-          <button
-            onClick={applyFilters}
-            className="btn-primary"
-          >
+          <button onClick={applyFilters} className="btn-primary">
             Apply Filters
           </button>
         </div>
@@ -266,13 +266,13 @@ const ProductDetail = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log("Fetching product:", id);
-      
+
       const response = await api.get(`/products/${id}`);
-      
+
       console.log("Product response:", response.data);
-      
+
       if (response.data.success) {
         setProduct(response.data.data);
       }
@@ -352,10 +352,16 @@ const ProductDetail = () => {
                   key={idx}
                   onClick={() => setSelectedImage(img)}
                   className={`aspect-square rounded-lg overflow-hidden border-2 ${
-                    selectedImage === img ? "border-blue-600" : "border-gray-300"
+                    selectedImage === img
+                      ? "border-blue-600"
+                      : "border-gray-300"
                   }`}
                 >
-                  <img src={img} alt={`${product.title} ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img
+                    src={img}
+                    alt={`${product.title} ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -365,7 +371,7 @@ const ProductDetail = () => {
         {/* Product Info */}
         <div>
           <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
-          
+
           {product.rating && (
             <div className="flex items-center mb-4">
               <div className="flex items-center text-yellow-500 mr-2">
@@ -383,7 +389,8 @@ const ProductDetail = () => {
             </div>
             {product.isAuction && (
               <div className="text-sm text-gray-600">
-                Auction ends: {new Date(product.auctionEndTime).toLocaleString()}
+                Auction ends:{" "}
+                {new Date(product.auctionEndTime).toLocaleString()}
               </div>
             )}
           </div>
@@ -392,7 +399,9 @@ const ProductDetail = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Condition:</span>
-                <span className="ml-2 font-semibold capitalize">{product.condition}</span>
+                <span className="ml-2 font-semibold capitalize">
+                  {product.condition}
+                </span>
               </div>
               {product.brand && (
                 <div>
@@ -413,7 +422,9 @@ const ProductDetail = () => {
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Description</h2>
-            <p className="text-gray-700 whitespace-pre-line">{product.description}</p>
+            <p className="text-gray-700 whitespace-pre-line">
+              {product.description}
+            </p>
           </div>
 
           {product.tags && product.tags.length > 0 && (
@@ -434,7 +445,9 @@ const ProductDetail = () => {
 
           {!product.isAuction && (
             <div className="mb-6">
-              <label className="block text-sm font-semibold mb-2">Quantity:</label>
+              <label className="block text-sm font-semibold mb-2">
+                Quantity:
+              </label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -451,14 +464,20 @@ const ProductDetail = () => {
                   onChange={(e) => {
                     const value = parseInt(e.target.value) || 1;
                     const maxStock = product.quantity || 999;
-                    const validQuantity = Math.min(Math.max(1, value), maxStock);
+                    const validQuantity = Math.min(
+                      Math.max(1, value),
+                      maxStock
+                    );
                     setQuantity(validQuantity);
                   }}
                   onBlur={(e) => {
                     // Auto-correct on blur if user manually typed invalid value
                     const value = parseInt(e.target.value) || 1;
                     const maxStock = product.quantity || 999;
-                    const validQuantity = Math.min(Math.max(1, value), maxStock);
+                    const validQuantity = Math.min(
+                      Math.max(1, value),
+                      maxStock
+                    );
                     if (value !== validQuantity) {
                       setQuantity(validQuantity);
                     }
@@ -466,7 +485,9 @@ const ProductDetail = () => {
                   className="w-20 text-center border border-gray-300 rounded px-2 py-1"
                 />
                 <button
-                  onClick={() => setQuantity(Math.min(quantity + 1, product.quantity || 999))}
+                  onClick={() =>
+                    setQuantity(Math.min(quantity + 1, product.quantity || 999))
+                  }
                   disabled={quantity >= (product.quantity || 999)}
                   className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -475,11 +496,18 @@ const ProductDetail = () => {
               </div>
               <div className="mt-2 text-sm text-gray-600">
                 {product.quantity ? (
-                  <span className={product.quantity < 10 ? "text-red-600 font-semibold" : ""}>
-                    {product.quantity} {product.quantity === 1 ? "item" : "items"} available
+                  <span
+                    className={
+                      product.quantity < 10 ? "text-red-600 font-semibold" : ""
+                    }
+                  >
+                    {product.quantity}{" "}
+                    {product.quantity === 1 ? "item" : "items"} available
                   </span>
                 ) : (
-                  <span className="text-gray-500">Stock information unavailable</span>
+                  <span className="text-gray-500">
+                    Stock information unavailable
+                  </span>
                 )}
               </div>
             </div>
@@ -509,7 +537,9 @@ const ProductDetail = () => {
                 )}
                 <div>
                   <p className="font-semibold">{product.sellerId.username}</p>
-                  <p className="text-sm text-gray-600">{product.sellerId.email}</p>
+                  <p className="text-sm text-gray-600">
+                    {product.sellerId.email}
+                  </p>
                 </div>
               </div>
             </div>
@@ -571,38 +601,39 @@ const SellerDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch seller's products (show all recent products)
-      const productsRes = await api.get('/products', {
-        params: { sellerId: user?._id, limit: 100 }
+      const productsRes = await api.get("/products", {
+        params: { sellerId: user?._id, limit: 100 },
       });
-      
+
       if (productsRes.data.success) {
         setRecentProducts(productsRes.data.data || []);
-        setStats(prev => ({
+        setStats((prev) => ({
           ...prev,
-          totalProducts: productsRes.data.total || 0
+          totalProducts: productsRes.data.total || 0,
         }));
       }
 
       // Fetch seller's orders
-      const ordersRes = await api.get('/orders/seller/orders');
-      
+      const ordersRes = await api.get("/orders/seller/orders");
+
       if (ordersRes.data.success) {
         const orders = ordersRes.data.data || [];
         const totalRevenue = orders
-          .filter(o => o.status !== 'cancelled')
+          .filter((o) => o.status !== "cancelled")
           .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-        const pendingOrders = orders.filter(o => o.status === 'pending').length;
-        
-        setStats(prev => ({
+        const pendingOrders = orders.filter(
+          (o) => o.status === "pending"
+        ).length;
+
+        setStats((prev) => ({
           ...prev,
           totalOrders: orders.length,
           totalRevenue: totalRevenue,
-          pendingOrders: pendingOrders
+          pendingOrders: pendingOrders,
         }));
       }
-      
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     } finally {
@@ -633,7 +664,9 @@ const SellerDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Total Products</p>
-              <p className="text-3xl font-bold text-blue-600">{stats.totalProducts}</p>
+              <p className="text-3xl font-bold text-blue-600">
+                {stats.totalProducts}
+              </p>
             </div>
             <div className="text-4xl">📦</div>
           </div>
@@ -643,7 +676,9 @@ const SellerDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Total Orders</p>
-              <p className="text-3xl font-bold text-green-600">{stats.totalOrders}</p>
+              <p className="text-3xl font-bold text-green-600">
+                {stats.totalOrders}
+              </p>
             </div>
             <div className="text-4xl">🛍️</div>
           </div>
@@ -653,7 +688,9 @@ const SellerDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Total Revenue</p>
-              <p className="text-3xl font-bold text-purple-600">${stats.totalRevenue.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-purple-600">
+                ${stats.totalRevenue.toLocaleString()}
+              </p>
             </div>
             <div className="text-4xl">💰</div>
           </div>
@@ -663,7 +700,9 @@ const SellerDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Pending Orders</p>
-              <p className="text-3xl font-bold text-orange-600">{stats.pendingOrders}</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {stats.pendingOrders}
+              </p>
             </div>
             <div className="text-4xl">⏳</div>
           </div>
@@ -675,25 +714,25 @@ const SellerDashboard = () => {
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <button
-            onClick={() => navigate('/seller/products')}
+            onClick={() => navigate("/seller/products")}
             className="btn-primary"
           >
             📦 Manage Products
           </button>
           <button
-            onClick={() => navigate('/seller/orders')}
+            onClick={() => navigate("/seller/orders")}
             className="btn-secondary"
           >
             🛍️ View Orders
           </button>
           <button
-            onClick={() => navigate('/seller/store')}
+            onClick={() => navigate("/seller/store")}
             className="btn-secondary"
           >
             🏪 Store Settings
           </button>
           <button
-            onClick={() => navigate('/seller/products/new')}
+            onClick={() => navigate("/seller/products/new")}
             className="btn-secondary"
           >
             ➕ Add New Product
@@ -706,18 +745,18 @@ const SellerDashboard = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Recent Products</h2>
           <button
-            onClick={() => navigate('/seller/products')}
+            onClick={() => navigate("/seller/products")}
             className="text-blue-600 hover:text-blue-800"
           >
             View All →
           </button>
         </div>
-        
+
         {recentProducts.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p>No products yet</p>
             <button
-              onClick={() => navigate('/seller/products/new')}
+              onClick={() => navigate("/seller/products/new")}
               className="btn-primary mt-4"
             >
               Create Your First Product
@@ -728,12 +767,24 @@ const SellerDashboard = () => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Product</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Price</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Stock</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Views</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Sold</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    Product
+                  </th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    Price
+                  </th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    Stock
+                  </th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    Views
+                  </th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    Sold
+                  </th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -744,7 +795,7 @@ const SellerDashboard = () => {
                         <div className="h-10 w-10 bg-gray-200 rounded mr-3">
                           {product.images && (
                             <img
-                              src={product.images.split(',')[0]}
+                              src={product.images.split(",")[0]}
                               alt={product.title}
                               className="h-full w-full object-cover rounded"
                             />
@@ -753,25 +804,37 @@ const SellerDashboard = () => {
                         <span className="font-medium">{product.title}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">${product.price?.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      ${product.price?.toFixed(2)}
+                    </td>
                     <td className="px-4 py-3">
-                      <span className={`font-medium ${
-                        product.quantity === 0 ? 'text-red-600' : 
-                        product.quantity < 10 ? 'text-yellow-600' : 
-                        'text-green-600'
-                      }`}>
+                      <span
+                        className={`font-medium ${
+                          product.quantity === 0
+                            ? "text-red-600"
+                            : product.quantity < 10
+                            ? "text-yellow-600"
+                            : "text-green-600"
+                        }`}
+                      >
                         {product.quantity || 0}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{product.views || 0}</td>
-                    <td className="px-4 py-3 text-gray-700">{product.sold || 0}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {product.views || 0}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {product.sold || 0}
+                    </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        product.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {product.isActive ? 'Active' : 'Inactive'}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          product.isActive
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {product.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
                   </tr>
@@ -788,21 +851,30 @@ const SellerDashboard = () => {
           <h2 className="text-xl font-bold mb-4">Top Performing Products</h2>
           <div className="space-y-3">
             {recentProducts.slice(0, 3).map((product, idx) => (
-              <div key={product._id} className="flex items-center justify-between">
+              <div
+                key={product._id}
+                className="flex items-center justify-between"
+              >
                 <div className="flex items-center">
                   <span className="text-2xl mr-3">
-                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}
                   </span>
                   <div>
                     <p className="font-semibold">{product.title}</p>
-                    <p className="text-sm text-gray-600">{product.sold || 0} sold</p>
+                    <p className="text-sm text-gray-600">
+                      {product.sold || 0} sold
+                    </p>
                   </div>
                 </div>
-                <span className="font-bold text-blue-600">${product.price}</span>
+                <span className="font-bold text-blue-600">
+                  ${product.price}
+                </span>
               </div>
             ))}
             {recentProducts.length === 0 && (
-              <p className="text-gray-500 text-center py-4">No data available</p>
+              <p className="text-gray-500 text-center py-4">
+                No data available
+              </p>
             )}
           </div>
         </div>
@@ -818,7 +890,10 @@ const SellerDashboard = () => {
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{width: '75%'}}></div>
+                <div
+                  className="bg-blue-600 h-2 rounded-full"
+                  style={{ width: "75%" }}
+                ></div>
               </div>
             </div>
             <div>
@@ -827,7 +902,10 @@ const SellerDashboard = () => {
                 <span className="text-sm font-semibold">12.5%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{width: '12.5%'}}></div>
+                <div
+                  className="bg-green-600 h-2 rounded-full"
+                  style={{ width: "12.5%" }}
+                ></div>
               </div>
             </div>
             <div>
@@ -836,7 +914,10 @@ const SellerDashboard = () => {
                 <span className="text-sm font-semibold">4.8/5.0</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-yellow-500 h-2 rounded-full" style={{width: '96%'}}></div>
+                <div
+                  className="bg-yellow-500 h-2 rounded-full"
+                  style={{ width: "96%" }}
+                ></div>
               </div>
             </div>
           </div>
@@ -861,10 +942,10 @@ const SellerProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/products', {
-        params: { sellerId: user?._id }
+      const response = await api.get("/products", {
+        params: { sellerId: user?._id },
       });
-      
+
       if (response.data.success) {
         setProducts(response.data.data || []);
       }
@@ -877,32 +958,34 @@ const SellerProducts = () => {
   };
 
   const handleDelete = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) {
+    if (!window.confirm("Are you sure you want to delete this product?")) {
       return;
     }
 
     try {
       await api.delete(`/products/${productId}`);
-      setProducts(products.filter(p => p._id !== productId));
-      alert('Product deleted successfully');
+      setProducts(products.filter((p) => p._id !== productId));
+      alert("Product deleted successfully");
     } catch (err) {
       console.error("Error deleting product:", err);
-      alert(err.response?.data?.message || 'Failed to delete product');
+      alert(err.response?.data?.message || "Failed to delete product");
     }
   };
 
   const handleToggleActive = async (productId, currentStatus) => {
     try {
       await api.put(`/products/${productId}`, {
-        isActive: !currentStatus
+        isActive: !currentStatus,
       });
-      
-      setProducts(products.map(p => 
-        p._id === productId ? { ...p, isActive: !currentStatus } : p
-      ));
+
+      setProducts(
+        products.map((p) =>
+          p._id === productId ? { ...p, isActive: !currentStatus } : p
+        )
+      );
     } catch (err) {
       console.error("Error updating product:", err);
-      alert(err.response?.data?.message || 'Failed to update product');
+      alert(err.response?.data?.message || "Failed to update product");
     }
   };
 
@@ -924,7 +1007,7 @@ const SellerProducts = () => {
           <p className="text-gray-600">Manage your product listings</p>
         </div>
         <button
-          onClick={() => navigate('/seller/products/new')}
+          onClick={() => navigate("/seller/products/new")}
           className="btn-primary"
         >
           ➕ Add New Product
@@ -946,7 +1029,7 @@ const SellerProducts = () => {
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <p className="text-sm text-gray-600">Active Products</p>
           <p className="text-2xl font-bold text-green-600">
-            {products.filter(p => p.isActive).length}
+            {products.filter((p) => p.isActive).length}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm border">
@@ -975,9 +1058,11 @@ const SellerProducts = () => {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold mb-2">No Products Yet</h3>
-            <p className="text-gray-600 mb-4">Start by adding your first product</p>
+            <p className="text-gray-600 mb-4">
+              Start by adding your first product
+            </p>
             <button
-              onClick={() => navigate('/seller/products/new')}
+              onClick={() => navigate("/seller/products/new")}
               className="btn-primary"
             >
               Create Your First Product
@@ -1019,7 +1104,7 @@ const SellerProducts = () => {
                         <div className="h-12 w-12 flex-shrink-0 bg-gray-200 rounded">
                           {product.images && (
                             <img
-                              src={product.images.split(',')[0]}
+                              src={product.images.split(",")[0]}
                               alt={product.title}
                               className="h-12 w-12 rounded object-cover"
                             />
@@ -1041,11 +1126,15 @@ const SellerProducts = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm font-medium ${
-                        product.quantity === 0 ? 'text-red-600' : 
-                        product.quantity < 10 ? 'text-yellow-600' : 
-                        'text-green-600'
-                      }`}>
+                      <div
+                        className={`text-sm font-medium ${
+                          product.quantity === 0
+                            ? "text-red-600"
+                            : product.quantity < 10
+                            ? "text-yellow-600"
+                            : "text-green-600"
+                        }`}
+                      >
                         {product.quantity || 0} units
                       </div>
                     </td>
@@ -1057,14 +1146,16 @@ const SellerProducts = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => handleToggleActive(product._id, product.isActive)}
+                        onClick={() =>
+                          handleToggleActive(product._id, product.isActive)
+                        }
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           product.isActive
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                         }`}
                       >
-                        {product.isActive ? 'Active' : 'Inactive'}
+                        {product.isActive ? "Active" : "Inactive"}
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -1075,7 +1166,9 @@ const SellerProducts = () => {
                         View
                       </button>
                       <button
-                        onClick={() => navigate(`/seller/products/edit/${product._id}`)}
+                        onClick={() =>
+                          navigate(`/seller/products/edit/${product._id}`)
+                        }
                         className="text-indigo-600 hover:text-indigo-900 mr-3"
                       >
                         Edit
@@ -1100,7 +1193,7 @@ const SellerProducts = () => {
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState("all");
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
 
@@ -1111,10 +1204,10 @@ const SellerOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/seller/orders', {
-        params: filter !== 'all' ? { status: filter } : {}
+      const response = await api.get("/orders/seller/orders", {
+        params: filter !== "all" ? { status: filter } : {},
       });
-      
+
       if (response.data.success) {
         setOrders(response.data.data || []);
       }
@@ -1127,21 +1220,21 @@ const SellerOrders = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      processing: 'bg-blue-100 text-blue-800',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
+      pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
+      shipped: "bg-purple-100 text-purple-800",
+      delivered: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || "bg-gray-100 text-gray-800";
   };
 
   const stats = {
     all: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    shipped: orders.filter(o => o.status === 'shipped').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
+    pending: orders.filter((o) => o.status === "pending").length,
+    processing: orders.filter((o) => o.status === "processing").length,
+    shipped: orders.filter((o) => o.status === "shipped").length,
+    delivered: orders.filter((o) => o.status === "delivered").length,
   };
 
   if (loading) {
@@ -1165,19 +1258,19 @@ const SellerOrders = () => {
       <div className="bg-white rounded-lg shadow-sm border mb-6">
         <div className="flex border-b overflow-x-auto">
           {[
-            { key: 'all', label: 'All Orders', count: stats.all },
-            { key: 'pending', label: 'Pending', count: stats.pending },
-            { key: 'processing', label: 'Processing', count: stats.processing },
-            { key: 'shipped', label: 'Shipped', count: stats.shipped },
-            { key: 'delivered', label: 'Delivered', count: stats.delivered },
+            { key: "all", label: "All Orders", count: stats.all },
+            { key: "pending", label: "Pending", count: stats.pending },
+            { key: "processing", label: "Processing", count: stats.processing },
+            { key: "shipped", label: "Shipped", count: stats.shipped },
+            { key: "delivered", label: "Delivered", count: stats.delivered },
           ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               className={`px-6 py-3 font-medium whitespace-nowrap ${
                 filter === tab.key
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               {tab.label} ({tab.count})
@@ -1192,23 +1285,32 @@ const SellerOrders = () => {
           <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold mb-2">No Orders Yet</h3>
-            <p className="text-gray-600">Orders will appear here when customers buy your products</p>
+            <p className="text-gray-600">
+              Orders will appear here when customers buy your products
+            </p>
           </div>
         ) : (
           orders.map((order) => (
-            <div key={order._id} className="bg-white rounded-lg shadow-sm border p-6">
+            <div
+              key={order._id}
+              className="bg-white rounded-lg shadow-sm border p-6"
+            >
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold">{order.orderNumber}</h3>
                   <p className="text-sm text-gray-600">
-                    {new Date(order.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
+                    {new Date(order.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
                     })}
                   </p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
+                    order.status
+                  )}`}
+                >
                   {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                 </span>
               </div>
@@ -1217,15 +1319,21 @@ const SellerOrders = () => {
                 <div className="flex items-center mb-2">
                   <span className="text-sm text-gray-600 mr-2">Customer:</span>
                   <span className="font-medium">{order.buyer.username}</span>
-                  <span className="text-gray-500 ml-2">({order.buyer.email})</span>
+                  <span className="text-gray-500 ml-2">
+                    ({order.buyer.email})
+                  </span>
                 </div>
-                
+
                 <div className="mt-2">
                   <p className="text-sm text-gray-600 mb-2">Products:</p>
                   {order.products.map((product, idx) => (
                     <div key={idx} className="flex justify-between text-sm">
-                      <span>{product.title} x {product.quantity}</span>
-                      <span className="font-medium">${(product.price * product.quantity).toFixed(2)}</span>
+                      <span>
+                        {product.title} x {product.quantity}
+                      </span>
+                      <span className="font-medium">
+                        ${(product.price * product.quantity).toFixed(2)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1242,15 +1350,11 @@ const SellerOrders = () => {
                   >
                     View Details
                   </button>
-                  {order.status === 'pending' && (
-                    <button className="btn-primary">
-                      Process Order
-                    </button>
+                  {order.status === "pending" && (
+                    <button className="btn-primary">Process Order</button>
                   )}
-                  {order.status === 'processing' && (
-                    <button className="btn-primary">
-                      Mark as Shipped
-                    </button>
+                  {order.status === "processing" && (
+                    <button className="btn-primary">Mark as Shipped</button>
                   )}
                 </div>
               </div>
@@ -1266,15 +1370,15 @@ const SellerStore = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    phone: '',
-    email: '',
-    address: '',
-    city: '',
-    country: '',
-    logo: '',
-    banner: '',
+    name: "",
+    description: "",
+    phone: "",
+    email: "",
+    address: "",
+    city: "",
+    country: "",
+    logo: "",
+    banner: "",
   });
   const { user } = useSelector((state) => state.auth);
 
@@ -1285,21 +1389,21 @@ const SellerStore = () => {
   const fetchStore = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/stores/my-store');
-      
+      const response = await api.get("/stores/my-store");
+
       if (response.data.success) {
         const storeData = response.data.data;
         setStore(storeData);
         setFormData({
-          name: storeData.name || '',
-          description: storeData.description || '',
-          phone: storeData.phone || '',
-          email: storeData.email || '',
-          address: storeData.address || '',
-          city: storeData.city || '',
-          country: storeData.country || 'Vietnam',
-          logo: storeData.logo || '',
-          banner: storeData.banner || '',
+          name: storeData.name || "",
+          description: storeData.description || "",
+          phone: storeData.phone || "",
+          email: storeData.email || "",
+          address: storeData.address || "",
+          city: storeData.city || "",
+          country: storeData.country || "Vietnam",
+          logo: storeData.logo || "",
+          banner: storeData.banner || "",
         });
       }
     } catch (err) {
@@ -1311,25 +1415,25 @@ const SellerStore = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
-      const response = await api.put('/stores', formData);
-      
+      const response = await api.put("/stores", formData);
+
       if (response.data.success) {
         setStore(response.data.data);
         setEditing(false);
-        alert('Store updated successfully!');
+        alert("Store updated successfully!");
       }
     } catch (err) {
       console.error("Error updating store:", err);
-      alert(err.response?.data?.message || 'Failed to update store');
+      alert(err.response?.data?.message || "Failed to update store");
     }
   };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -1348,13 +1452,12 @@ const SellerStore = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Store Settings</h1>
-          <p className="text-gray-600">Manage your store information and settings</p>
+          <p className="text-gray-600">
+            Manage your store information and settings
+          </p>
         </div>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="btn-primary"
-          >
+          <button onClick={() => setEditing(true)} className="btn-primary">
             ✏️ Edit Store
           </button>
         )}
@@ -1366,7 +1469,9 @@ const SellerStore = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Store Rating</p>
-              <p className="text-3xl font-bold text-yellow-600">⭐ {store?.rating}</p>
+              <p className="text-3xl font-bold text-yellow-600">
+                ⭐ {store?.rating}
+              </p>
             </div>
           </div>
         </div>
@@ -1374,7 +1479,9 @@ const SellerStore = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Total Sales</p>
-              <p className="text-3xl font-bold text-green-600">{store?.totalSales}</p>
+              <p className="text-3xl font-bold text-green-600">
+                {store?.totalSales}
+              </p>
             </div>
           </div>
         </div>
@@ -1563,29 +1670,41 @@ const SellerStore = () => {
           ) : (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">
+                  Description
+                </h3>
                 <p className="text-gray-900">{store?.description}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Contact Email</h3>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    Contact Email
+                  </h3>
                   <p className="text-gray-900">{store?.email}</p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Phone</h3>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    Phone
+                  </h3>
                   <p className="text-gray-900">{store?.phone}</p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Address</h3>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    Address
+                  </h3>
                   <p className="text-gray-900">{store?.address}</p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">City</h3>
-                  <p className="text-gray-900">{store?.city}, {store?.country}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    City
+                  </h3>
+                  <p className="text-gray-900">
+                    {store?.city}, {store?.country}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1600,7 +1719,9 @@ const SellerStore = () => {
           <div className="flex items-center justify-between py-3 border-b">
             <div>
               <h4 className="font-medium">Vacation Mode</h4>
-              <p className="text-sm text-gray-600">Temporarily pause all listings</p>
+              <p className="text-sm text-gray-600">
+                Temporarily pause all listings
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" />
@@ -1611,7 +1732,9 @@ const SellerStore = () => {
           <div className="flex items-center justify-between py-3 border-b">
             <div>
               <h4 className="font-medium">Email Notifications</h4>
-              <p className="text-sm text-gray-600">Receive updates about orders and messages</p>
+              <p className="text-sm text-gray-600">
+                Receive updates about orders and messages
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" defaultChecked />
@@ -1622,7 +1745,9 @@ const SellerStore = () => {
           <div className="flex items-center justify-between py-3">
             <div>
               <h4 className="font-medium">Auto-Reply Messages</h4>
-              <p className="text-sm text-gray-600">Automatically respond to customer inquiries</p>
+              <p className="text-sm text-gray-600">
+                Automatically respond to customer inquiries
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" />
