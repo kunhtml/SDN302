@@ -7,11 +7,11 @@ const logger = require("../config/logger");
 // @access  Private
 exports.getOrders = async (req, res) => {
   try {
-    const query = { userId: req.user._id };
+    const query = { buyerId: req.user._id };
 
     const orders = await Order.find(query)
-      .populate("products.productId", "title images price")
-      .populate("sellerId", "username email")
+      .populate("items.product", "title images price")
+      .populate("items.seller", "username email")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -36,15 +36,17 @@ exports.getOrders = async (req, res) => {
 exports.getSellerOrders = async (req, res) => {
   try {
     const { status } = req.query;
-    const query = { sellerId: req.user._id };
+
+    // Find orders that contain items from this seller
+    const query = { "items.seller": req.user._id };
 
     if (status && status !== "all") {
       query.status = status;
     }
 
     const orders = await Order.find(query)
-      .populate("userId", "username email avatarURL")
-      .populate("products.productId", "title images price")
+      .populate("buyerId", "username email avatarURL")
+      .populate("items.product", "title images price")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -69,9 +71,9 @@ exports.getSellerOrders = async (req, res) => {
 exports.getOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate("userId", "username email avatarURL addresses")
-      .populate("sellerId", "username email")
-      .populate("products.productId", "title images price")
+      .populate("buyerId", "username email avatarURL addresses")
+      .populate("items.seller", "username email")
+      .populate("items.product", "title images price")
       .lean();
 
     if (!order) {
@@ -82,11 +84,13 @@ exports.getOrder = async (req, res) => {
     }
 
     // Check if user owns this order or is the seller
-    if (
-      order.userId._id.toString() !== req.user._id.toString() &&
-      order.sellerId?._id.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
+    const isBuyer = order.buyerId._id.toString() === req.user._id.toString();
+    const isSeller = order.items.some(
+      (item) =>
+        item.seller && item.seller._id.toString() === req.user._id.toString()
+    );
+
+    if (!isBuyer && !isSeller && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "Not authorized to access this order",
@@ -113,31 +117,71 @@ exports.getOrder = async (req, res) => {
 exports.createOrder = async (req, res) => {
   try {
     const {
-      products,
+      items,
       shippingAddress,
       paymentMethod,
-      totalAmount,
-      shippingFee,
+      itemsPrice,
+      taxPrice,
+      shippingPrice,
+      totalPrice,
+      notes,
     } = req.body;
 
-    // Validate products
-    if (!products || products.length === 0) {
+    console.log("Received order data:", {
+      items,
+      shippingAddress,
+      paymentMethod,
+      itemsPrice,
+      taxPrice,
+      shippingPrice,
+      totalPrice,
+    });
+
+    // Validate items
+    if (!items || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Order must contain at least one product",
       });
     }
 
+    // Validate required fields
+    if (!shippingAddress) {
+      return res.status(400).json({
+        success: false,
+        message: "Shipping address is required",
+      });
+    }
+
+    if (!paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method is required",
+      });
+    }
+
     // Create order
     const order = await Order.create({
-      userId: req.user._id,
-      products,
+      buyerId: req.user._id,
+      items,
       shippingAddress,
       paymentMethod,
-      totalAmount,
-      shippingFee,
+      itemsPrice: itemsPrice || 0,
+      taxPrice: taxPrice || 0,
+      shippingPrice: shippingPrice || 0,
+      totalPrice: totalPrice || 0,
+      notes: notes || "",
       status: "pending",
+      paymentStatus: "pending",
     });
+
+    console.log("Order created:", order._id);
+
+    // Populate the order before sending response
+    await order.populate([
+      { path: "buyerId", select: "username email" },
+      { path: "items.product", select: "title images price" },
+    ]);
 
     res.status(201).json({
       success: true,
@@ -146,6 +190,7 @@ exports.createOrder = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Error creating order: ${error.message}`);
+    console.error("Order creation error:", error);
     res.status(400).json({
       success: false,
       message: "Error creating order",

@@ -1,17 +1,25 @@
 const express = require("express");
 const router = express.Router();
 const { protect, isVerifiedSeller } = require("../middleware/auth");
+const {
+  getSellerCoupons,
+  createCoupon,
+  updateCoupon,
+  deleteCoupon,
+  validateCoupon,
+  applyCoupon,
+} = require("../controllers/couponController");
 
-router.post("/validate", protect, (req, res) => {
-  res.json({ success: true, valid: true, discount: 10 });
-});
+// Public routes
+router.get("/validate/:code", validateCoupon);
 
-router.get("/", protect, isVerifiedSeller, (req, res) => {
-  res.json({ success: true, data: [] });
-});
+// Protected routes
+router.post("/apply", protect, applyCoupon);
 
-router.post("/", protect, isVerifiedSeller, (req, res) => {
-  res.json({ success: true, message: "Coupon created" });
-});
+// Seller routes
+router.get("/seller", protect, isVerifiedSeller, getSellerCoupons);
+router.post("/", protect, isVerifiedSeller, createCoupon);
+router.put("/:id", protect, isVerifiedSeller, updateCoupon);
+router.delete("/:id", protect, isVerifiedSeller, deleteCoupon);
 
 module.exports = router;

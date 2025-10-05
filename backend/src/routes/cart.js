@@ -15,9 +15,6 @@ router.route("/").get(getCart).delete(clearCart);
 
 router.post("/items", addToCart);
 
-router
-  .route("/items/:itemId")
-  .put(updateCartItem)
-  .delete(removeFromCart);
+router.route("/items/:itemId").put(updateCartItem).delete(removeFromCart);
 
 module.exports = router;

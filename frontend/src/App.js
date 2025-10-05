@@ -25,6 +25,7 @@ import {
   SellerProducts,
   AddProduct,
   SellerOrders,
+  SellerCoupons,
   SellerStore,
   AdminDashboard,
   AdminUsers,
@@ -96,6 +97,7 @@ function App() {
           <Route path="products" element={<SellerProducts />} />
           <Route path="products/new" element={<AddProduct />} />
           <Route path="orders" element={<SellerOrders />} />
+          <Route path="coupons" element={<SellerCoupons />} />
           <Route path="store" element={<SellerStore />} />
         </Route>
 

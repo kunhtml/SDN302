@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useParams, Link } from "react-router-dom";
+import {
+  useNavigate,
+  useSearchParams,
+  useParams,
+  Link,
+} from "react-router-dom";
 import { useSelector } from "react-redux";
 import api from "../services/api";
 import { toast } from "react-toastify";
@@ -762,7 +767,9 @@ const Cart = () => {
                           {product.title}
                         </Link>
                         <div className="text-sm text-gray-600 mb-2">
-                          <span className="capitalize">{product.condition}</span>
+                          <span className="capitalize">
+                            {product.condition}
+                          </span>
                           {product.brand && (
                             <span> • Brand: {product.brand}</span>
                           )}
@@ -913,21 +920,1248 @@ const Cart = () => {
   );
 };
 
-const Checkout = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Checkout Page</h1>
-  </div>
-);
-const Orders = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Orders Page</h1>
-  </div>
-);
-const OrderDetail = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Order Detail Page</h1>
-  </div>
-);
+const Checkout = () => {
+  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const [cart, setCart] = useState({ items: [], totalItems: 0, subtotal: 0 });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState(1); // 1: Shipping, 2: Payment, 3: Review
+
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: "",
+    phone: "",
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "Vietnam",
+  });
+
+  const [paymentMethod, setPaymentMethod] = useState("cod"); // cod, paypal, stripe, bank_transfer
+  const [orderNotes, setOrderNotes] = useState("");
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  useEffect(() => {
+    // Pre-fill shipping address from user profile if available
+    if (user) {
+      setShippingAddress((prev) => ({
+        ...prev,
+        fullName: user.username || "",
+        phone: user.phone || "",
+      }));
+
+      // If user has saved addresses, use the default one
+      if (user.addresses && user.addresses.length > 0) {
+        const defaultAddress =
+          user.addresses.find((addr) => addr.isDefault) || user.addresses[0];
+        if (defaultAddress) {
+          setShippingAddress({
+            fullName: defaultAddress.fullName || user.username || "",
+            phone: defaultAddress.phone || user.phone || "",
+            street: defaultAddress.street || "",
+            city: defaultAddress.city || "",
+            state: defaultAddress.state || "",
+            zipCode: defaultAddress.zipCode || "",
+            country: defaultAddress.country || "Vietnam",
+          });
+        }
+      }
+    }
+  }, [user]);
+
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/cart");
+      if (response.data.success) {
+        setCart(response.data.data);
+
+        // Redirect if cart is empty
+        if (response.data.data.items.length === 0) {
+          toast.info("Your cart is empty");
+          navigate("/cart");
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch cart");
+      navigate("/cart");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShippingChange = (e) => {
+    const { name, value } = e.target;
+    setShippingAddress((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validateShipping = () => {
+    const required = [
+      "fullName",
+      "phone",
+      "street",
+      "city",
+      "state",
+      "country",
+    ];
+    for (const field of required) {
+      if (!shippingAddress[field] || shippingAddress[field].trim() === "") {
+        toast.error(
+          `Please fill in ${field.replace(/([A-Z])/g, " $1").toLowerCase()}`
+        );
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+
+    try {
+      setCouponLoading(true);
+      const productIds = cart.items.map((item) => item.product._id).join(",");
+      const response = await api.get(
+        `/coupons/validate/${couponCode.toUpperCase()}?productIds=${productIds}&totalAmount=${
+          cart.subtotal
+        }`
+      );
+
+      if (response.data.success) {
+        setAppliedCoupon(response.data.data);
+        toast.success(
+          `Coupon applied! You saved $${response.data.data.discount.toFixed(2)}`
+        );
+      }
+    } catch (error) {
+      console.error("Error applying coupon:", error);
+      toast.error(error.response?.data?.message || "Invalid coupon code");
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    toast.info("Coupon removed");
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!validateShipping()) {
+      setStep(1);
+      return;
+    }
+
+    if (!paymentMethod) {
+      toast.error("Please select a payment method");
+      setStep(2);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Calculate totals
+      const shipping = cart.subtotal > 50 ? 0 : 5.99;
+      const discount = appliedCoupon ? appliedCoupon.discount : 0;
+      const subtotalAfterDiscount = Math.max(0, cart.subtotal - discount);
+      const tax = subtotalAfterDiscount * 0.1;
+      const total = subtotalAfterDiscount + shipping + tax;
+
+      // Prepare order items
+      const items = cart.items.map((item) => ({
+        product: item.product._id,
+        name: item.product.title,
+        quantity: item.quantity,
+        price: item.product.price,
+        image: item.product.images ? item.product.images.split(",")[0] : "",
+        seller: item.product.sellerId?._id || item.product.sellerId,
+      }));
+
+      console.log("Order items prepared:", items);
+      console.log("Shipping address:", shippingAddress);
+
+      const orderData = {
+        items,
+        shippingAddress,
+        paymentMethod,
+        itemsPrice: cart.subtotal,
+        discountAmount: discount,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
+        taxPrice: tax,
+        shippingPrice: shipping,
+        totalPrice: total,
+        notes: orderNotes,
+      };
+
+      console.log("Order data to send:", orderData);
+
+      const response = await api.post("/orders", orderData);
+
+      if (response.data.success) {
+        toast.success("Order placed successfully!");
+
+        // Clear the cart
+        await api.delete("/cart");
+
+        // Redirect to order detail page
+        navigate(`/orders/${response.data.data._id}`);
+      }
+    } catch (error) {
+      console.error("Error placing order:", error);
+      toast.error(error.response?.data?.message || "Failed to place order");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const shipping = cart.subtotal > 50 ? 0 : 5.99;
+  const discount = appliedCoupon ? appliedCoupon.discount : 0;
+  const subtotalAfterDiscount = Math.max(0, cart.subtotal - discount);
+  const tax = subtotalAfterDiscount * 0.1;
+  const total = subtotalAfterDiscount + shipping + tax;
+
+  return (
+    <div className="container-custom py-8">
+      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+
+      {/* Progress Steps */}
+      <div className="mb-8">
+        <div className="flex items-center justify-center">
+          {[1, 2, 3].map((s) => (
+            <React.Fragment key={s}>
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  step >= s
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-600"
+                } font-semibold`}
+              >
+                {s}
+              </div>
+              {s < 3 && (
+                <div
+                  className={`w-24 h-1 ${
+                    step > s ? "bg-blue-600" : "bg-gray-200"
+                  }`}
+                />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="flex justify-between mt-2 text-sm">
+          <span
+            className={
+              step >= 1 ? "text-blue-600 font-semibold" : "text-gray-600"
+            }
+          >
+            Shipping
+          </span>
+          <span
+            className={
+              step >= 2 ? "text-blue-600 font-semibold" : "text-gray-600"
+            }
+          >
+            Payment
+          </span>
+          <span
+            className={
+              step >= 3 ? "text-blue-600 font-semibold" : "text-gray-600"
+            }
+          >
+            Review
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Form */}
+        <div className="lg:col-span-2">
+          {/* Step 1: Shipping Address */}
+          {step === 1 && (
+            <div className="card">
+              <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold mb-2">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={shippingAddress.fullName}
+                    onChange={handleShippingChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold mb-2">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={shippingAddress.phone}
+                    onChange={handleShippingChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold mb-2">
+                    Street Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="street"
+                    value={shippingAddress.street}
+                    onChange={handleShippingChange}
+                    required
+                    placeholder="House number and street name"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={shippingAddress.city}
+                    onChange={handleShippingChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    State/Province *
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={shippingAddress.state}
+                    onChange={handleShippingChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Zip Code
+                  </label>
+                  <input
+                    type="text"
+                    name="zipCode"
+                    value={shippingAddress.zipCode}
+                    onChange={handleShippingChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={shippingAddress.country}
+                    onChange={handleShippingChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => {
+                    if (validateShipping()) {
+                      setStep(2);
+                    }
+                  }}
+                  className="btn-primary"
+                >
+                  Continue to Payment
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Payment Method */}
+          {step === 2 && (
+            <div className="card">
+              <h2 className="text-2xl font-bold mb-6">Payment Method</h2>
+
+              <div className="space-y-4">
+                {[
+                  { value: "cod", label: "Cash on Delivery", icon: "💵" },
+                  { value: "paypal", label: "PayPal", icon: "💳" },
+                  { value: "stripe", label: "Credit/Debit Card", icon: "💳" },
+                  {
+                    value: "bank_transfer",
+                    label: "Bank Transfer",
+                    icon: "🏦",
+                  },
+                ].map((method) => (
+                  <label
+                    key={method.value}
+                    className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      paymentMethod === method.value
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={method.value}
+                      checked={paymentMethod === method.value}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="mr-4"
+                    />
+                    <span className="text-2xl mr-3">{method.icon}</span>
+                    <span className="font-semibold">{method.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-6">
+                <label className="block text-sm font-semibold mb-2">
+                  Order Notes (Optional)
+                </label>
+                <textarea
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  rows="3"
+                  placeholder="Any special instructions for your order..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-between mt-6">
+                <button onClick={() => setStep(1)} className="btn-secondary">
+                  Back to Shipping
+                </button>
+                <button onClick={() => setStep(3)} className="btn-primary">
+                  Review Order
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Review Order */}
+          {step === 3 && (
+            <div className="space-y-6">
+              {/* Shipping Address Review */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Shipping Address</h2>
+                  <button
+                    onClick={() => setStep(1)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="text-gray-700">
+                  <p className="font-semibold">{shippingAddress.fullName}</p>
+                  <p>{shippingAddress.phone}</p>
+                  <p>{shippingAddress.street}</p>
+                  <p>
+                    {shippingAddress.city}, {shippingAddress.state}{" "}
+                    {shippingAddress.zipCode}
+                  </p>
+                  <p>{shippingAddress.country}</p>
+                </div>
+              </div>
+
+              {/* Payment Method Review */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Payment Method</h2>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <p className="text-gray-700 capitalize font-semibold">
+                  {paymentMethod.replace("_", " ")}
+                </p>
+                {orderNotes && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded">
+                    <p className="text-sm text-gray-600 font-semibold mb-1">
+                      Order Notes:
+                    </p>
+                    <p className="text-sm text-gray-700">{orderNotes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Order Items */}
+              <div className="card">
+                <h2 className="text-xl font-bold mb-4">Order Items</h2>
+                <div className="divide-y">
+                  {cart.items.map((item) => {
+                    const product = item.product;
+                    if (!product) return null;
+
+                    const images = product.images
+                      ? product.images.split(",")
+                      : [];
+                    const firstImage = images[0] || "";
+
+                    return (
+                      <div key={item._id} className="py-4 flex gap-4">
+                        <img
+                          src={firstImage || "/placeholder.png"}
+                          alt={product.title}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{product.title}</h3>
+                          <p className="text-sm text-gray-600">
+                            Quantity: {item.quantity}
+                          </p>
+                          <p className="text-lg font-bold text-blue-600">
+                            ${(product.price * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-between">
+                <button onClick={() => setStep(2)} className="btn-secondary">
+                  Back to Payment
+                </button>
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={submitting}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  {submitting ? "Placing Order..." : "Place Order"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Order Summary Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="card sticky top-4">
+            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+
+            {/* Coupon Code Input */}
+            <div className="mb-4 pb-4 border-b">
+              <label className="block text-sm font-semibold mb-2">
+                🎟️ Have a coupon code?
+              </label>
+              {!appliedCoupon ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) =>
+                      setCouponCode(e.target.value.toUpperCase())
+                    }
+                    placeholder="Enter code"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    disabled={couponLoading}
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="btn-primary px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {couponLoading ? "..." : "Apply"}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600 font-bold">✓</span>
+                        <span className="font-mono font-semibold text-green-700">
+                          {appliedCoupon.code}
+                        </span>
+                      </div>
+                      <p className="text-sm text-green-600 mt-1">
+                        {appliedCoupon.description ||
+                          "Coupon applied successfully!"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="text-red-500 hover:text-red-700 font-semibold text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal ({cart.totalItems} items)</span>
+                <span>${cart.subtotal.toFixed(2)}</span>
+              </div>
+              {appliedCoupon && (
+                <div className="flex justify-between text-green-600 font-semibold">
+                  <span>
+                    Discount (
+                    {appliedCoupon.discountType === "percentage"
+                      ? `${appliedCoupon.discountValue}%`
+                      : "Coupon"}
+                    )
+                  </span>
+                  <span>-${discount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>Shipping</span>
+                <span>
+                  {shipping === 0 ? (
+                    <span className="text-green-600 font-semibold">FREE</span>
+                  ) : (
+                    `$${shipping.toFixed(2)}`
+                  )}
+                </span>
+              </div>
+              {shipping > 0 && (
+                <div className="text-sm text-gray-500">
+                  💡 Free shipping on orders over $50
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>Tax (10%)</span>
+                <span>${tax.toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-3 flex justify-between text-xl font-bold">
+                <span>Total</span>
+                <span className="text-blue-600">${total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="text-center text-sm text-gray-600 mb-4">
+              <span>🔒 Secure Checkout</span>
+            </div>
+
+            {step < 3 && (
+              <div className="text-sm text-gray-500">
+                <p className="mb-2">📦 Estimated Delivery: 3-5 business days</p>
+                <p>✅ 30-day return policy</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Orders = () => {
+  const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // all, pending, processing, shipped, delivered, cancelled
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/orders");
+      if (response.data.success) {
+        setOrders(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
+      confirmed: "bg-indigo-100 text-indigo-800",
+      shipped: "bg-purple-100 text-purple-800",
+      delivered: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
+      refunded: "bg-gray-100 text-gray-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const getPaymentStatusColor = (status) => {
+    const colors = {
+      pending: "bg-yellow-100 text-yellow-800",
+      paid: "bg-green-100 text-green-800",
+      failed: "bg-red-100 text-red-800",
+      refunded: "bg-gray-100 text-gray-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const filteredOrders = orders.filter((order) => {
+    if (filter === "all") return true;
+    return order.status === filter;
+  });
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">My Orders</h1>
+        <div className="text-gray-600">
+          {orders.length} {orders.length === 1 ? "order" : "orders"}
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        {[
+          { value: "all", label: "All Orders" },
+          { value: "pending", label: "Pending" },
+          { value: "processing", label: "Processing" },
+          { value: "shipped", label: "Shipped" },
+          { value: "delivered", label: "Delivered" },
+          { value: "cancelled", label: "Cancelled" },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setFilter(tab.value)}
+            className={`px-4 py-2 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+              filter === tab.value
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Orders List */}
+      {filteredOrders.length === 0 ? (
+        <div className="card text-center py-16">
+          <div className="text-6xl mb-4">📦</div>
+          <h2 className="text-2xl font-bold mb-2">No orders found</h2>
+          <p className="text-gray-600 mb-6">
+            {filter === "all"
+              ? "You haven't placed any orders yet"
+              : `No ${filter} orders found`}
+          </p>
+          <Link to="/products" className="btn-primary inline-block">
+            Start Shopping
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredOrders.map((order) => (
+            <div
+              key={order._id}
+              className="card hover:shadow-lg transition-shadow"
+            >
+              {/* Order Header */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-bold text-lg">
+                      Order #{order.orderNumber || order._id.slice(-8)}
+                    </h3>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                        order.status
+                      )}`}
+                    >
+                      {order.status?.charAt(0).toUpperCase() +
+                        order.status?.slice(1)}
+                    </span>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getPaymentStatusColor(
+                        order.paymentStatus
+                      )}`}
+                    >
+                      Payment: {order.paymentStatus}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Placed on{" "}
+                    {new Date(order.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-blue-600">
+                    ${order.totalPrice?.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {order.items?.length}{" "}
+                    {order.items?.length === 1 ? "item" : "items"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div className="py-4 space-y-3">
+                {order.items?.slice(0, 2).map((item, index) => {
+                  const product = item.product;
+                  return (
+                    <div key={index} className="flex gap-4">
+                      <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                        {item.image || product?.images ? (
+                          <img
+                            src={
+                              item.image ||
+                              (product?.images
+                                ? product.images.split(",")[0]
+                                : "")
+                            }
+                            alt={item.name || product?.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold">
+                          {item.name || product?.title}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          Quantity: {item.quantity} × ${item.price?.toFixed(2)}
+                        </p>
+                        <p className="text-sm font-semibold text-blue-600">
+                          ${(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {order.items?.length > 2 && (
+                  <p className="text-sm text-gray-600 text-center pt-2">
+                    + {order.items.length - 2} more{" "}
+                    {order.items.length - 2 === 1 ? "item" : "items"}
+                  </p>
+                )}
+              </div>
+
+              {/* Order Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t">
+                <div className="flex items-center gap-4">
+                  <div className="text-sm">
+                    <span className="text-gray-600">Payment: </span>
+                    <span className="font-semibold capitalize">
+                      {order.paymentMethod?.replace("_", " ")}
+                    </span>
+                  </div>
+                  {order.trackingNumber && (
+                    <div className="text-sm">
+                      <span className="text-gray-600">Tracking: </span>
+                      <span className="font-semibold">
+                        {order.trackingNumber}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate(`/orders/${order._id}`)}
+                  className="btn-secondary"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+const OrderDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [id]);
+
+  const fetchOrder = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.get(`/orders/${id}`);
+      if (response.data.success) {
+        setOrder(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching order:", error);
+      setError(error.response?.data?.message || "Failed to fetch order");
+      toast.error(error.response?.data?.message || "Failed to fetch order");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: "bg-yellow-100 text-yellow-800",
+      processing: "bg-blue-100 text-blue-800",
+      confirmed: "bg-indigo-100 text-indigo-800",
+      shipped: "bg-purple-100 text-purple-800",
+      delivered: "bg-green-100 text-green-800",
+      cancelled: "bg-red-100 text-red-800",
+      refunded: "bg-gray-100 text-gray-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const getPaymentStatusColor = (status) => {
+    const colors = {
+      pending: "bg-yellow-100 text-yellow-800",
+      paid: "bg-green-100 text-green-800",
+      failed: "bg-red-100 text-red-800",
+      refunded: "bg-gray-100 text-gray-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="container-custom py-8">
+        <div className="card text-center py-16">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold mb-2">Order Not Found</h2>
+          <p className="text-gray-600 mb-6">
+            {error || "The order you're looking for doesn't exist"}
+          </p>
+          <button onClick={() => navigate("/orders")} className="btn-primary">
+            Back to Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      {/* Header */}
+      <button
+        onClick={() => navigate("/orders")}
+        className="mb-6 text-blue-600 hover:text-blue-800 flex items-center"
+      >
+        ← Back to Orders
+      </button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Order Info */}
+          <div className="card">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <h1 className="text-2xl font-bold mb-2">
+                  Order #{order.orderNumber || order._id.slice(-8)}
+                </h1>
+                <p className="text-gray-600">
+                  Placed on{" "}
+                  {new Date(order.createdAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <span
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold text-center ${getStatusColor(
+                    order.status
+                  )}`}
+                >
+                  {order.status?.charAt(0).toUpperCase() +
+                    order.status?.slice(1)}
+                </span>
+                <span
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold text-center ${getPaymentStatusColor(
+                    order.paymentStatus
+                  )}`}
+                >
+                  Payment: {order.paymentStatus}
+                </span>
+              </div>
+            </div>
+
+            {/* Order Items */}
+            <h2 className="text-xl font-bold mb-4">Order Items</h2>
+            <div className="space-y-4">
+              {order.items?.map((item, index) => {
+                const product = item.product;
+                return (
+                  <div
+                    key={index}
+                    className="flex gap-4 pb-4 border-b last:border-b-0"
+                  >
+                    <div className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                      {item.image || product?.images ? (
+                        <img
+                          src={
+                            item.image ||
+                            (product?.images
+                              ? product.images.split(",")[0]
+                              : "")
+                          }
+                          alt={item.name || product?.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          No Image
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg mb-1">
+                        {item.name || product?.title}
+                      </h3>
+                      <p className="text-gray-600 mb-2">
+                        Quantity: {item.quantity} × ${item.price?.toFixed(2)}
+                      </p>
+                      <p className="text-xl font-bold text-blue-600">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Shipping Address */}
+          <div className="card">
+            <h2 className="text-xl font-bold mb-4">Shipping Address</h2>
+            <div className="text-gray-700">
+              <p className="font-semibold">{order.shippingAddress?.fullName}</p>
+              <p>{order.shippingAddress?.phone}</p>
+              <p>{order.shippingAddress?.street}</p>
+              <p>
+                {order.shippingAddress?.city}, {order.shippingAddress?.state}{" "}
+                {order.shippingAddress?.zipCode}
+              </p>
+              <p>{order.shippingAddress?.country}</p>
+            </div>
+          </div>
+
+          {/* Order Notes */}
+          {order.notes && (
+            <div className="card">
+              <h2 className="text-xl font-bold mb-4">Order Notes</h2>
+              <p className="text-gray-700">{order.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="lg:col-span-1">
+          {/* Order Summary */}
+          <div className="card sticky top-4">
+            <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-gray-600">
+                <span>Items Price</span>
+                <span>${order.itemsPrice?.toFixed(2) || "0.00"}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Shipping</span>
+                <span>
+                  {order.shippingPrice === 0 ? (
+                    <span className="text-green-600 font-semibold">FREE</span>
+                  ) : (
+                    `$${order.shippingPrice?.toFixed(2) || "0.00"}`
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Tax</span>
+                <span>${order.taxPrice?.toFixed(2) || "0.00"}</span>
+              </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span>-${order.discountAmount?.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="border-t pt-3 flex justify-between text-xl font-bold">
+                <span>Total</span>
+                <span className="text-blue-600">
+                  ${order.totalPrice?.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Info */}
+            <div className="border-t pt-4 mb-4">
+              <h3 className="font-semibold mb-2">Payment Method</h3>
+              <p className="text-gray-700 capitalize">
+                {order.paymentMethod?.replace("_", " ")}
+              </p>
+            </div>
+
+            {/* Tracking Info */}
+            {order.trackingNumber && (
+              <div className="border-t pt-4 mb-4">
+                <h3 className="font-semibold mb-2">Tracking Information</h3>
+                <p className="text-gray-700">
+                  <span className="text-gray-600">Tracking #:</span>{" "}
+                  <span className="font-mono">{order.trackingNumber}</span>
+                </p>
+                {order.carrier && (
+                  <p className="text-gray-700">
+                    <span className="text-gray-600">Carrier:</span>{" "}
+                    {order.carrier}
+                  </p>
+                )}
+                {order.estimatedArrival && (
+                  <p className="text-gray-700">
+                    <span className="text-gray-600">Estimated Arrival:</span>{" "}
+                    {new Date(order.estimatedArrival).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Delivery Date */}
+            {order.deliveredAt && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="text-green-800 font-semibold">✅ Delivered</p>
+                <p className="text-sm text-green-700">
+                  {new Date(order.deliveredAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            )}
+
+            {/* Status History */}
+            {order.statusHistory && order.statusHistory.length > 0 && (
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3">Order History</h3>
+                <div className="space-y-2">
+                  {order.statusHistory.map((history, index) => (
+                    <div key={index} className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                        <span className="font-semibold capitalize">
+                          {history.status}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 ml-4 text-xs">
+                        {new Date(history.timestamp).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </p>
+                      {history.note && (
+                        <p className="text-gray-600 ml-4 text-xs">
+                          {history.note}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 const Profile = () => {
   const { user } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState("profile");
@@ -988,7 +2222,7 @@ const Profile = () => {
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
-    
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error("New passwords do not match");
       return;
@@ -1025,7 +2259,9 @@ const Profile = () => {
     return (
       <div className="container-custom py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Please login to view your profile</h2>
+          <h2 className="text-2xl font-bold mb-4">
+            Please login to view your profile
+          </h2>
         </div>
       </div>
     );
@@ -1165,9 +2401,7 @@ const Profile = () => {
 
               {/* Bio */}
               <div className="mb-4">
-                <label className="block text-sm font-semibold mb-2">
-                  Bio
-                </label>
+                <label className="block text-sm font-semibold mb-2">Bio</label>
                 <textarea
                   name="bio"
                   value={profileData.bio}
@@ -1184,13 +2418,15 @@ const Profile = () => {
                 <label className="block text-sm font-semibold mb-2">
                   Account Type
                 </label>
-                <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
-                  user.role === "seller"
-                    ? "bg-blue-100 text-blue-800"
-                    : user.role === "admin"
-                    ? "bg-purple-100 text-purple-800"
-                    : "bg-green-100 text-green-800"
-                }`}>
+                <span
+                  className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
+                    user.role === "seller"
+                      ? "bg-blue-100 text-blue-800"
+                      : user.role === "admin"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-green-100 text-green-800"
+                  }`}
+                >
                   {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
                 </span>
               </div>
@@ -1450,7 +2686,7 @@ const SellerDashboard = () => {
       {/* Quick Actions */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <button
             onClick={() => navigate("/seller/products")}
             className="btn-primary"
@@ -1462,6 +2698,12 @@ const SellerDashboard = () => {
             className="btn-secondary"
           >
             🛍️ View Orders
+          </button>
+          <button
+            onClick={() => navigate("/seller/coupons")}
+            className="btn-secondary"
+          >
+            🎟️ Manage Coupons
           </button>
           <button
             onClick={() => navigate("/seller/store")}
@@ -1932,6 +3174,7 @@ const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [updatingStatus, setUpdatingStatus] = useState({});
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
 
@@ -1942,7 +3185,7 @@ const SellerOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/orders/seller/orders", {
+      const response = await api.get("/orders/seller", {
         params: filter !== "all" ? { status: filter } : {},
       });
 
@@ -1951,8 +3194,30 @@ const SellerOrders = () => {
       }
     } catch (err) {
       console.error("Error fetching orders:", err);
+      toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      setUpdatingStatus((prev) => ({ ...prev, [orderId]: true }));
+      const response = await api.put(`/orders/${orderId}/status`, {
+        status: newStatus,
+      });
+
+      if (response.data.success) {
+        toast.success("Order status updated successfully");
+        fetchOrders(); // Refresh orders
+      }
+    } catch (err) {
+      console.error("Error updating status:", err);
+      toast.error(
+        err.response?.data?.message || "Failed to update order status"
+      );
+    } finally {
+      setUpdatingStatus((prev) => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -1960,9 +3225,11 @@ const SellerOrders = () => {
     const colors = {
       pending: "bg-yellow-100 text-yellow-800",
       processing: "bg-blue-100 text-blue-800",
+      confirmed: "bg-indigo-100 text-indigo-800",
       shipped: "bg-purple-100 text-purple-800",
       delivered: "bg-green-100 text-green-800",
       cancelled: "bg-red-100 text-red-800",
+      refunded: "bg-gray-100 text-gray-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
   };
@@ -1971,6 +3238,7 @@ const SellerOrders = () => {
     all: orders.length,
     pending: orders.filter((o) => o.status === "pending").length,
     processing: orders.filter((o) => o.status === "processing").length,
+    confirmed: orders.filter((o) => o.status === "confirmed").length,
     shipped: orders.filter((o) => o.status === "shipped").length,
     delivered: orders.filter((o) => o.status === "delivered").length,
   };
@@ -1992,35 +3260,63 @@ const SellerOrders = () => {
         <p className="text-gray-600">Manage your customer orders</p>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border mb-6">
-        <div className="flex border-b overflow-x-auto">
-          {[
-            { key: "all", label: "All Orders", count: stats.all },
-            { key: "pending", label: "Pending", count: stats.pending },
-            { key: "processing", label: "Processing", count: stats.processing },
-            { key: "shipped", label: "Shipped", count: stats.shipped },
-            { key: "delivered", label: "Delivered", count: stats.delivered },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFilter(tab.key)}
-              className={`px-6 py-3 font-medium whitespace-nowrap ${
-                filter === tab.key
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-600 hover:text-gray-900"
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        {[
+          {
+            key: "all",
+            label: "All Orders",
+            count: stats.all,
+            color: "bg-gray-100 text-gray-800",
+          },
+          {
+            key: "pending",
+            label: "Pending",
+            count: stats.pending,
+            color: "bg-yellow-100 text-yellow-800",
+          },
+          {
+            key: "processing",
+            label: "Processing",
+            count: stats.processing,
+            color: "bg-blue-100 text-blue-800",
+          },
+          {
+            key: "shipped",
+            label: "Shipped",
+            count: stats.shipped,
+            color: "bg-purple-100 text-purple-800",
+          },
+          {
+            key: "delivered",
+            label: "Delivered",
+            count: stats.delivered,
+            color: "bg-green-100 text-green-800",
+          },
+        ].map((stat) => (
+          <button
+            key={stat.key}
+            onClick={() => setFilter(stat.key)}
+            className={`card text-center transition-all ${
+              filter === stat.key ? "ring-2 ring-blue-600" : ""
+            }`}
+          >
+            <div
+              className={`text-3xl font-bold mb-1 ${
+                filter === stat.key ? "text-blue-600" : ""
               }`}
             >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
+              {stat.count}
+            </div>
+            <div className="text-sm text-gray-600">{stat.label}</div>
+          </button>
+        ))}
       </div>
 
       {/* Orders List */}
       <div className="space-y-4">
         {orders.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+          <div className="card text-center py-12">
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold mb-2">No Orders Yet</h3>
             <p className="text-gray-600">
@@ -2028,81 +3324,743 @@ const SellerOrders = () => {
             </p>
           </div>
         ) : (
-          orders.map((order) => (
-            <div
-              key={order._id}
-              className="bg-white rounded-lg shadow-sm border p-6"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold">{order.orderNumber}</h3>
-                  <p className="text-sm text-gray-600">
-                    {new Date(order.createdAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
-                    order.status
-                  )}`}
-                >
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                </span>
-              </div>
+          orders.map((order) => {
+            // Get seller's items from this order
+            const sellerItems =
+              order.items?.filter(
+                (item) =>
+                  item.seller?._id?.toString() === user?._id ||
+                  item.seller?.toString() === user?._id
+              ) || [];
 
-              <div className="border-t border-b py-4 mb-4">
-                <div className="flex items-center mb-2">
-                  <span className="text-sm text-gray-600 mr-2">Customer:</span>
-                  <span className="font-medium">{order.buyer.username}</span>
-                  <span className="text-gray-500 ml-2">
-                    ({order.buyer.email})
-                  </span>
+            if (sellerItems.length === 0) return null;
+
+            const sellerTotal = sellerItems.reduce(
+              (sum, item) => sum + item.price * item.quantity,
+              0
+            );
+
+            return (
+              <div
+                key={order._id}
+                className="card hover:shadow-lg transition-shadow"
+              >
+                {/* Order Header */}
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b">
+                  <div>
+                    <h3 className="text-lg font-bold mb-1">
+                      Order #{order.orderNumber || order._id.slice(-8)}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {new Date(order.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
+                        order.status
+                      )}`}
+                    >
+                      {order.status?.charAt(0).toUpperCase() +
+                        order.status?.slice(1)}
+                    </span>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600">
+                        ${sellerTotal.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-gray-600">Your share</div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-2">
-                  <p className="text-sm text-gray-600 mb-2">Products:</p>
-                  {order.products.map((product, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span>
-                        {product.title} x {product.quantity}
-                      </span>
-                      <span className="font-medium">
-                        ${(product.price * product.quantity).toFixed(2)}
+                {/* Customer Info */}
+                <div className="py-4 border-b">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Customer</p>
+                      <p className="font-semibold">
+                        {order.buyerId?.username || "Unknown"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {order.buyerId?.email || "N/A"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600 mb-1">Payment</p>
+                      <p className="font-semibold capitalize">
+                        {order.paymentMethod?.replace("_", " ")}
+                      </p>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          order.paymentStatus === "paid"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {order.paymentStatus}
                       </span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-bold">
-                  Total: ${order.totalAmount.toFixed(2)}
+                {/* Seller's Items */}
+                <div className="py-4 border-b">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">
+                    Your Items ({sellerItems.length})
+                  </p>
+                  <div className="space-y-3">
+                    {sellerItems.map((item, idx) => {
+                      const product = item.product;
+                      return (
+                        <div key={idx} className="flex gap-3">
+                          <div className="w-16 h-16 bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                            {item.image || product?.images ? (
+                              <img
+                                src={
+                                  item.image ||
+                                  (product?.images
+                                    ? product.images.split(",")[0]
+                                    : "")
+                                }
+                                alt={item.name || product?.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                No Image
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">
+                              {item.name || product?.title}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              Qty: {item.quantity} × ${item.price?.toFixed(2)}
+                            </p>
+                            <p className="text-sm font-bold text-blue-600">
+                              ${(item.price * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="space-x-2">
+
+                {/* Shipping Address */}
+                <div className="py-4 border-b">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">
+                    Shipping Address
+                  </p>
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium text-gray-800">
+                      {order.shippingAddress?.fullName}
+                    </p>
+                    <p>{order.shippingAddress?.phone}</p>
+                    <p>{order.shippingAddress?.street}</p>
+                    <p>
+                      {order.shippingAddress?.city},{" "}
+                      {order.shippingAddress?.state}{" "}
+                      {order.shippingAddress?.zipCode}
+                    </p>
+                    <p>{order.shippingAddress?.country}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-semibold text-gray-700">
+                      Update Status:
+                    </label>
+                    <select
+                      value={order.status}
+                      onChange={(e) =>
+                        updateOrderStatus(order._id, e.target.value)
+                      }
+                      disabled={updatingStatus[order._id]}
+                      className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 text-sm"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="processing">Processing</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
                   <button
-                    onClick={() => navigate(`/seller/orders/${order._id}`)}
-                    className="btn-secondary"
+                    onClick={() => navigate(`/orders/${order._id}`)}
+                    className="btn-secondary text-sm"
                   >
                     View Details
                   </button>
-                  {order.status === "pending" && (
-                    <button className="btn-primary">Process Order</button>
-                  )}
-                  {order.status === "processing" && (
-                    <button className="btn-primary">Mark as Shipped</button>
-                  )}
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
   );
 };
+
+// Seller Coupons Management
+const SellerCoupons = () => {
+  const navigate = useNavigate();
+  const [coupons, setCoupons] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState(null);
+  const [formData, setFormData] = useState({
+    code: "",
+    discountType: "percentage", // percentage or fixed
+    discountValue: "",
+    minPurchase: "",
+    maxDiscount: "",
+    startDate: "",
+    endDate: "",
+    maxUsage: "",
+    productIds: [],
+    description: "",
+  });
+
+  useEffect(() => {
+    fetchCoupons();
+    fetchProducts();
+  }, []);
+
+  const fetchCoupons = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/coupons/seller");
+      if (response.data.success) {
+        setCoupons(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch coupons");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get("/products/seller/products?limit=100");
+      if (response.data.success) {
+        setProducts(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProductSelection = (productId) => {
+    setFormData((prev) => ({
+      ...prev,
+      productIds: prev.productIds.includes(productId)
+        ? prev.productIds.filter((id) => id !== productId)
+        : [...prev.productIds, productId],
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const couponData = {
+        ...formData,
+        discountValue: parseFloat(formData.discountValue),
+        minPurchase: formData.minPurchase
+          ? parseFloat(formData.minPurchase)
+          : 0,
+        maxDiscount: formData.maxDiscount
+          ? parseFloat(formData.maxDiscount)
+          : null,
+        maxUsage: formData.maxUsage ? parseInt(formData.maxUsage) : null,
+      };
+
+      if (editingCoupon) {
+        const response = await api.put(
+          `/coupons/${editingCoupon._id}`,
+          couponData
+        );
+        if (response.data.success) {
+          toast.success("Coupon updated successfully!");
+          fetchCoupons();
+          handleCloseModal();
+        }
+      } else {
+        const response = await api.post("/coupons", couponData);
+        if (response.data.success) {
+          toast.success("Coupon created successfully!");
+          fetchCoupons();
+          handleCloseModal();
+        }
+      }
+    } catch (error) {
+      console.error("Error saving coupon:", error);
+      toast.error(error.response?.data?.message || "Failed to save coupon");
+    }
+  };
+
+  const handleEdit = (coupon) => {
+    setEditingCoupon(coupon);
+    setFormData({
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue.toString(),
+      minPurchase: coupon.minPurchase?.toString() || "",
+      maxDiscount: coupon.maxDiscount?.toString() || "",
+      startDate: coupon.startDate
+        ? new Date(coupon.startDate).toISOString().split("T")[0]
+        : "",
+      endDate: coupon.endDate
+        ? new Date(coupon.endDate).toISOString().split("T")[0]
+        : "",
+      maxUsage: coupon.maxUsage?.toString() || "",
+      productIds: coupon.applicableProducts?.map((p) => p._id || p) || [],
+      description: coupon.description || "",
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (couponId) => {
+    if (!window.confirm("Are you sure you want to delete this coupon?")) return;
+
+    try {
+      const response = await api.delete(`/coupons/${couponId}`);
+      if (response.data.success) {
+        toast.success("Coupon deleted successfully!");
+        fetchCoupons();
+      }
+    } catch (error) {
+      console.error("Error deleting coupon:", error);
+      toast.error(error.response?.data?.message || "Failed to delete coupon");
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingCoupon(null);
+    setFormData({
+      code: "",
+      discountType: "percentage",
+      discountValue: "",
+      minPurchase: "",
+      maxDiscount: "",
+      startDate: "",
+      endDate: "",
+      maxUsage: "",
+      productIds: [],
+      description: "",
+    });
+  };
+
+  const isExpired = (endDate) => {
+    return endDate && new Date(endDate) < new Date();
+  };
+
+  const isActive = (coupon) => {
+    const now = new Date();
+    const start = coupon.startDate ? new Date(coupon.startDate) : null;
+    const end = coupon.endDate ? new Date(coupon.endDate) : null;
+
+    if (start && now < start) return false;
+    if (end && now > end) return false;
+    if (coupon.maxUsage && coupon.usedCount >= coupon.maxUsage)
+      return false;
+
+    return coupon.isActive;
+  };
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Manage Coupons</h1>
+          <p className="text-gray-600">
+            Create and manage discount coupons for your products
+          </p>
+        </div>
+        <button onClick={() => setShowModal(true)} className="btn-primary">
+          ➕ Create Coupon
+        </button>
+      </div>
+
+      {/* Coupons List */}
+      {coupons.length === 0 ? (
+        <div className="card text-center py-16">
+          <div className="text-6xl mb-4">🎟️</div>
+          <h2 className="text-2xl font-bold mb-2">No coupons yet</h2>
+          <p className="text-gray-600 mb-6">
+            Create your first coupon to offer discounts to customers
+          </p>
+          <button onClick={() => setShowModal(true)} className="btn-primary">
+            Create Your First Coupon
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {coupons.map((coupon) => (
+            <div key={coupon._id} className="card">
+              {/* Coupon Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-bold font-mono bg-blue-50 text-blue-600 px-3 py-1 rounded">
+                      {coupon.code}
+                    </h3>
+                    {isActive(coupon) ? (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                        Active
+                      </span>
+                    ) : isExpired(coupon.endDate) ? (
+                      <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded">
+                        Expired
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  {coupon.description && (
+                    <p className="text-sm text-gray-600">
+                      {coupon.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Discount Info */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mb-4">
+                <div className="text-3xl font-bold text-blue-600">
+                  {coupon.discountType === "percentage"
+                    ? `${coupon.discountValue}% OFF`
+                    : `$${coupon.discountValue} OFF`}
+                </div>
+                {coupon.minPurchase > 0 && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Min. purchase: ${coupon.minPurchase}
+                  </p>
+                )}
+                {coupon.maxDiscount && coupon.discountType === "percentage" && (
+                  <p className="text-sm text-gray-600">
+                    Max. discount: ${coupon.maxDiscount}
+                  </p>
+                )}
+              </div>
+
+              {/* Coupon Details */}
+              <div className="space-y-2 text-sm mb-4">
+                {coupon.startDate && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Start:</span>
+                    <span className="font-semibold">
+                      {new Date(coupon.startDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                {coupon.endDate && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">End:</span>
+                    <span className="font-semibold">
+                      {new Date(coupon.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Used:</span>
+                  <span className="font-semibold text-blue-600">
+                    {coupon.usedCount || 0}{" "}
+                    {coupon.maxUsage ? `/ ${coupon.maxUsage}` : "times"}
+                  </span>
+                </div>
+                {coupon.applicableProducts &&
+                  coupon.applicableProducts.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Products:</span>
+                      <span className="font-semibold">
+                        {coupon.applicableProducts.length} selected
+                      </span>
+                    </div>
+                  )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEdit(coupon)}
+                  className="flex-1 btn-secondary text-sm"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(coupon._id)}
+                  className="flex-1 bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg font-semibold text-sm"
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">
+                  {editingCoupon ? "Edit Coupon" : "Create New Coupon"}
+                </h2>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div className="space-y-4">
+                  {/* Coupon Code */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Coupon Code *
+                    </label>
+                    <input
+                      type="text"
+                      name="code"
+                      value={formData.code}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="e.g., SUMMER2024"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    />
+                  </div>
+
+                  {/* Discount Type & Value */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Discount Type *
+                      </label>
+                      <select
+                        name="discountType"
+                        value={formData.discountType}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount ($)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Discount Value *
+                      </label>
+                      <input
+                        type="number"
+                        name="discountValue"
+                        value={formData.discountValue}
+                        onChange={handleInputChange}
+                        required
+                        min="0"
+                        step="0.01"
+                        placeholder={
+                          formData.discountType === "percentage"
+                            ? "e.g., 20"
+                            : "e.g., 10.00"
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Min Purchase & Max Discount */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Minimum Purchase ($)
+                      </label>
+                      <input
+                        type="number"
+                        name="minPurchase"
+                        value={formData.minPurchase}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    {formData.discountType === "percentage" && (
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">
+                          Maximum Discount ($)
+                        </label>
+                        <input
+                          type="number"
+                          name="maxDiscount"
+                          value={formData.maxDiscount}
+                          onChange={handleInputChange}
+                          min="0"
+                          step="0.01"
+                          placeholder="No limit"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Date Range */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={formData.startDate}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={formData.endDate}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Usage Limit */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Usage Limit
+                    </label>
+                    <input
+                      type="number"
+                      name="maxUsage"
+                      value={formData.maxUsage}
+                      onChange={handleInputChange}
+                      min="1"
+                      placeholder="Unlimited"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      rows="3"
+                      placeholder="Brief description of this coupon..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Product Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">
+                      Applicable Products (Optional)
+                    </label>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Leave empty to apply to all products
+                    </p>
+                    <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto p-3">
+                      {products.length === 0 ? (
+                        <p className="text-gray-500 text-sm">
+                          No products available
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {products.map((product) => (
+                            <label
+                              key={product._id}
+                              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.productIds.includes(
+                                  product._id
+                                )}
+                                onChange={() =>
+                                  handleProductSelection(product._id)
+                                }
+                                className="w-4 h-4"
+                              />
+                              <span className="text-sm">{product.title}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex gap-4 mt-6">
+                  <button type="submit" className="flex-1 btn-primary">
+                    {editingCoupon ? "Update Coupon" : "Create Coupon"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="flex-1 btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SellerStore = () => {
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2499,11 +4457,253 @@ const SellerStore = () => {
 };
 
 // Admin Pages
-const AdminDashboard = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-  </div>
-);
+const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalProducts: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    pendingDisputes: 0,
+    activeUsers: 0,
+  });
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [recentUsers, setRecentUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      // Fetch stats
+      const statsResponse = await api.get("/admin/stats");
+      if (statsResponse.data.success) {
+        setStats(statsResponse.data.data);
+      }
+
+      // Fetch recent orders
+      const ordersResponse = await api.get("/admin/orders?limit=5");
+      if (ordersResponse.data.success) {
+        setRecentOrders(ordersResponse.data.data);
+      }
+
+      // Fetch recent users
+      const usersResponse = await api.get("/admin/users?limit=5");
+      if (usersResponse.data.success) {
+        setRecentUsers(usersResponse.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error(error.response?.data?.message || "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+        <p className="text-gray-600">Welcome to the admin control panel</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {/* Total Users */}
+        <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-blue-600 font-semibold mb-1">Total Users</p>
+              <h3 className="text-3xl font-bold text-blue-900">{stats.totalUsers}</h3>
+              <p className="text-xs text-blue-600 mt-1">{stats.activeUsers} active</p>
+            </div>
+            <div className="text-4xl">👥</div>
+          </div>
+        </div>
+
+        {/* Total Products */}
+        <div className="card bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-green-600 font-semibold mb-1">Total Products</p>
+              <h3 className="text-3xl font-bold text-green-900">{stats.totalProducts}</h3>
+              <p className="text-xs text-green-600 mt-1">Listed items</p>
+            </div>
+            <div className="text-4xl">📦</div>
+          </div>
+        </div>
+
+        {/* Total Orders */}
+        <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-purple-600 font-semibold mb-1">Total Orders</p>
+              <h3 className="text-3xl font-bold text-purple-900">{stats.totalOrders}</h3>
+              <p className="text-xs text-purple-600 mt-1">All time</p>
+            </div>
+            <div className="text-4xl">🛒</div>
+          </div>
+        </div>
+
+        {/* Total Revenue */}
+        <div className="card bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-yellow-600 font-semibold mb-1">Total Revenue</p>
+              <h3 className="text-3xl font-bold text-yellow-900">${stats.totalRevenue?.toFixed(2) || '0.00'}</h3>
+              <p className="text-xs text-yellow-600 mt-1">Platform earnings</p>
+            </div>
+            <div className="text-4xl">💰</div>
+          </div>
+        </div>
+
+        {/* Pending Disputes */}
+        <div className="card bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-red-600 font-semibold mb-1">Pending Disputes</p>
+              <h3 className="text-3xl font-bold text-red-900">{stats.pendingDisputes}</h3>
+              <p className="text-xs text-red-600 mt-1">Needs attention</p>
+            </div>
+            <div className="text-4xl">⚠️</div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="card bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+          <p className="text-sm text-indigo-600 font-semibold mb-3">Quick Actions</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate("/admin/users")}
+              className="w-full text-left px-3 py-2 bg-white hover:bg-indigo-50 rounded-lg text-sm font-semibold text-indigo-700 transition-colors"
+            >
+              👥 Manage Users
+            </button>
+            <button
+              onClick={() => navigate("/admin/products")}
+              className="w-full text-left px-3 py-2 bg-white hover:bg-indigo-50 rounded-lg text-sm font-semibold text-indigo-700 transition-colors"
+            >
+              📦 Manage Products
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Orders */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Recent Orders</h2>
+            <button
+              onClick={() => navigate("/admin/orders")}
+              className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
+            >
+              View All →
+            </button>
+          </div>
+          {recentOrders.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No orders yet</p>
+          ) : (
+            <div className="space-y-3">
+              {recentOrders.map((order) => (
+                <div
+                  key={order._id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/admin/orders/${order._id}`)}
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">
+                      Order #{order.orderNumber || order._id.slice(-6)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {order.buyerId?.username || "Unknown User"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-sm">${order.totalPrice?.toFixed(2)}</p>
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        order.status === "delivered"
+                          ? "bg-green-100 text-green-800"
+                          : order.status === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {order.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Users */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Recent Users</h2>
+            <button
+              onClick={() => navigate("/admin/users")}
+              className="text-blue-600 hover:text-blue-700 text-sm font-semibold"
+            >
+              View All →
+            </button>
+          </div>
+          {recentUsers.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No users yet</p>
+          ) : (
+            <div className="space-y-3">
+              {recentUsers.map((user) => (
+                <div
+                  key={user._id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/admin/users/${user._id}`)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {user.username?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{user.username}</p>
+                      <p className="text-xs text-gray-600">{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        user.role === "admin"
+                          ? "bg-purple-100 text-purple-800"
+                          : user.role === "seller"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {user.role}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 const AdminUsers = () => (
   <div className="container-custom py-8">
     <h1 className="text-3xl font-bold">Admin Users</h1>
@@ -2859,6 +5059,7 @@ export {
   SellerProducts,
   AddProduct,
   SellerOrders,
+  SellerCoupons,
   SellerStore,
   AdminDashboard,
   AdminUsers,

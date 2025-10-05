@@ -11,7 +11,7 @@ const {
 } = require("../controllers/orderController");
 
 // Seller routes - must be before /:id route
-router.get("/seller/orders", protect, isVerifiedSeller, getSellerOrders);
+router.get("/seller", protect, isVerifiedSeller, getSellerOrders);
 
 // User routes
 router.use(protect);

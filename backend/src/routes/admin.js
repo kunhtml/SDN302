@@ -1,48 +1,42 @@
 const express = require("express");
 const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
+const {
+  getDashboardStats,
+  getUsers,
+  getUserById,
+  updateUserStatus,
+  updateUserRole,
+  deleteUser,
+  getProducts,
+  deleteProduct,
+  getOrders,
+  getDisputes,
+  resolveDispute,
+} = require("../controllers/adminController");
 
 router.use(protect);
 router.use(authorize("admin"));
 
-router.get("/dashboard", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalUsers: 0,
-      totalProducts: 0,
-      totalOrders: 0,
-      totalRevenue: 0,
-    },
-  });
-});
+// Dashboard
+router.get("/stats", getDashboardStats);
 
-router.get("/users", (req, res) => {
-  res.json({ success: true, data: [] });
-});
+// Users
+router.get("/users", getUsers);
+router.get("/users/:id", getUserById);
+router.put("/users/:id/status", updateUserStatus);
+router.put("/users/:id/role", updateUserRole);
+router.delete("/users/:id", deleteUser);
 
-router.put("/users/:id/status", (req, res) => {
-  res.json({ success: true, message: "User status updated" });
-});
+// Products
+router.get("/products", getProducts);
+router.delete("/products/:id", deleteProduct);
 
-router.get("/products", (req, res) => {
-  res.json({ success: true, data: [] });
-});
+// Orders
+router.get("/orders", getOrders);
 
-router.delete("/products/:id", (req, res) => {
-  res.json({ success: true, message: "Product deleted" });
-});
-
-router.get("/orders", (req, res) => {
-  res.json({ success: true, data: [] });
-});
-
-router.get("/disputes", (req, res) => {
-  res.json({ success: true, data: [] });
-});
-
-router.put("/disputes/:id/resolve", (req, res) => {
-  res.json({ success: true, message: "Dispute resolved" });
-});
+// Disputes
+router.get("/disputes", getDisputes);
+router.put("/disputes/:id/resolve", resolveDispute);
 
 module.exports = router;

@@ -8,7 +8,7 @@ const asyncHandler = require("../middleware/asyncHandler");
 exports.getCart = asyncHandler(async (req, res) => {
   let cart = await Cart.findOne({ user: req.user._id }).populate({
     path: "items.product",
-    select: "title price images quantity condition brand",
+    select: "title price images quantity condition brand sellerId",
   });
 
   if (!cart) {
@@ -89,7 +89,7 @@ exports.addToCart = asyncHandler(async (req, res) => {
     if (existingItemIndex > -1) {
       // Update quantity
       const newQuantity = cart.items[existingItemIndex].quantity + quantity;
-      
+
       // Check stock
       if (product.quantity < newQuantity) {
         return res.status(400).json({
@@ -97,7 +97,7 @@ exports.addToCart = asyncHandler(async (req, res) => {
           message: `Only ${product.quantity} items available in stock`,
         });
       }
-      
+
       cart.items[existingItemIndex].quantity = newQuantity;
     } else {
       // Add new item
@@ -113,7 +113,7 @@ exports.addToCart = asyncHandler(async (req, res) => {
   // Populate and return updated cart
   await cart.populate({
     path: "items.product",
-    select: "title price images quantity condition brand",
+    select: "title price images quantity condition brand sellerId",
   });
 
   const subtotal = cart.items.reduce((sum, item) => {
@@ -189,7 +189,7 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
 
   await cart.populate({
     path: "items.product",
-    select: "title price images quantity condition brand",
+    select: "title price images quantity condition brand sellerId",
   });
 
   const subtotal = cart.items.reduce((sum, item) => {
@@ -241,7 +241,7 @@ exports.removeFromCart = asyncHandler(async (req, res) => {
 
   await cart.populate({
     path: "items.product",
-    select: "title price images quantity condition brand",
+    select: "title price images quantity condition brand sellerId",
   });
 
   const subtotal = cart.items.reduce((sum, item) => {

@@ -17,7 +17,9 @@ const Home = () => {
     if (!isAutoPlaying || featuredProducts.length === 0) return;
 
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % Math.ceil(featuredProducts.length / 4));
+      setCurrentSlide(
+        (prev) => (prev + 1) % Math.ceil(featuredProducts.length / 4)
+      );
     }, 3000); // Change slide every 3 seconds
 
     return () => clearInterval(interval);
@@ -39,12 +41,18 @@ const Home = () => {
 
   const nextSlide = () => {
     setIsAutoPlaying(false);
-    setCurrentSlide((prev) => (prev + 1) % Math.ceil(featuredProducts.length / 4));
+    setCurrentSlide(
+      (prev) => (prev + 1) % Math.ceil(featuredProducts.length / 4)
+    );
   };
 
   const prevSlide = () => {
     setIsAutoPlaying(false);
-    setCurrentSlide((prev) => (prev - 1 + Math.ceil(featuredProducts.length / 4)) % Math.ceil(featuredProducts.length / 4));
+    setCurrentSlide(
+      (prev) =>
+        (prev - 1 + Math.ceil(featuredProducts.length / 4)) %
+        Math.ceil(featuredProducts.length / 4)
+    );
   };
 
   const goToSlide = (index) => {
@@ -84,7 +92,7 @@ const Home = () => {
           <h2 className="text-3xl font-bold text-center mb-12">
             Featured Products
           </h2>
-          
+
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -97,67 +105,85 @@ const Home = () => {
             <div className="relative">
               {/* Carousel Container */}
               <div className="overflow-hidden">
-                <div 
+                <div
                   className="flex transition-transform duration-500 ease-in-out"
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                 >
-                  {Array.from({ length: Math.ceil(featuredProducts.length / 4) }).map((_, slideIndex) => (
-                    <div key={slideIndex} className="min-w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {featuredProducts.slice(slideIndex * 4, slideIndex * 4 + 4).map((product) => {
-                        const images = product.images ? product.images.split(",") : [];
-                        const firstImage = images[0] || "";
-                        
-                        return (
-                          <Link
-                            key={product._id}
-                            to={`/products/${product._id}`}
-                            className="card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-                          >
-                            <div className="aspect-square bg-gray-200 mb-4 rounded-lg overflow-hidden">
-                              {firstImage ? (
-                                <img
-                                  src={firstImage}
-                                  alt={product.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                  No Image
+                  {Array.from({
+                    length: Math.ceil(featuredProducts.length / 4),
+                  }).map((_, slideIndex) => (
+                    <div
+                      key={slideIndex}
+                      className="min-w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+                    >
+                      {featuredProducts
+                        .slice(slideIndex * 4, slideIndex * 4 + 4)
+                        .map((product) => {
+                          const images = product.images
+                            ? product.images.split(",")
+                            : [];
+                          const firstImage = images[0] || "";
+
+                          return (
+                            <Link
+                              key={product._id}
+                              to={`/products/${product._id}`}
+                              className="card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                            >
+                              <div className="aspect-square bg-gray-200 mb-4 rounded-lg overflow-hidden">
+                                {firstImage ? (
+                                  <img
+                                    src={firstImage}
+                                    alt={product.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    No Image
+                                  </div>
+                                )}
+                              </div>
+                              <h3 className="font-semibold text-lg mb-2 line-clamp-2">
+                                {product.title}
+                              </h3>
+                              <div className="flex items-center justify-between">
+                                <p className="text-2xl font-bold text-blue-600">
+                                  ${product.price?.toFixed(2)}
+                                </p>
+                                {product.quantity !== undefined && (
+                                  <span
+                                    className={`text-sm ${
+                                      product.quantity === 0
+                                        ? "text-red-600 font-semibold"
+                                        : product.quantity < 10
+                                        ? "text-orange-600"
+                                        : "text-green-600"
+                                    }`}
+                                  >
+                                    {product.quantity === 0
+                                      ? "Out of Stock"
+                                      : `${product.quantity} left`}
+                                  </span>
+                                )}
+                              </div>
+                              {product.rating > 0 && (
+                                <div className="flex items-center mt-2 text-sm text-gray-600">
+                                  <span className="text-yellow-500">⭐</span>
+                                  <span className="ml-1">
+                                    {product.rating.toFixed(1)}
+                                  </span>
+                                  <span className="ml-1">
+                                    ({product.numReviews})
+                                  </span>
                                 </div>
                               )}
-                            </div>
-                            <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                              {product.title}
-                            </h3>
-                            <div className="flex items-center justify-between">
-                              <p className="text-2xl font-bold text-blue-600">
-                                ${product.price?.toFixed(2)}
-                              </p>
-                              {product.quantity !== undefined && (
-                                <span className={`text-sm ${
-                                  product.quantity === 0 
-                                    ? "text-red-600 font-semibold" 
-                                    : product.quantity < 10 
-                                    ? "text-orange-600" 
-                                    : "text-green-600"
-                                }`}>
-                                  {product.quantity === 0 ? "Out of Stock" : `${product.quantity} left`}
-                                </span>
-                              )}
-                            </div>
-                            {product.rating > 0 && (
-                              <div className="flex items-center mt-2 text-sm text-gray-600">
-                                <span className="text-yellow-500">⭐</span>
-                                <span className="ml-1">{product.rating.toFixed(1)}</span>
-                                <span className="ml-1">({product.numReviews})</span>
+                              <div className="mt-2 text-sm text-gray-500">
+                                👁️ {product.views} views • 🛒 {product.sold}{" "}
+                                sold
                               </div>
-                            )}
-                            <div className="mt-2 text-sm text-gray-500">
-                              👁️ {product.views} views • 🛒 {product.sold} sold
-                            </div>
-                          </Link>
-                        );
-                      })}
+                            </Link>
+                          );
+                        })}
                     </div>
                   ))}
                 </div>
@@ -171,8 +197,18 @@ const Home = () => {
                     className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white rounded-full p-3 shadow-lg hover:bg-gray-100 transition-all z-10"
                     aria-label="Previous slide"
                   >
-                    <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    <svg
+                      className="w-6 h-6 text-gray-800"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
                     </svg>
                   </button>
                   <button
@@ -180,8 +216,18 @@ const Home = () => {
                     className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white rounded-full p-3 shadow-lg hover:bg-gray-100 transition-all z-10"
                     aria-label="Next slide"
                   >
-                    <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <svg
+                      className="w-6 h-6 text-gray-800"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </button>
                 </>
@@ -190,13 +236,15 @@ const Home = () => {
               {/* Dots Indicator */}
               {featuredProducts.length > 4 && (
                 <div className="flex justify-center gap-2 mt-8">
-                  {Array.from({ length: Math.ceil(featuredProducts.length / 4) }).map((_, index) => (
+                  {Array.from({
+                    length: Math.ceil(featuredProducts.length / 4),
+                  }).map((_, index) => (
                     <button
                       key={index}
                       onClick={() => goToSlide(index)}
                       className={`h-2 rounded-full transition-all ${
-                        currentSlide === index 
-                          ? "w-8 bg-blue-600" 
+                        currentSlide === index
+                          ? "w-8 bg-blue-600"
                           : "w-2 bg-gray-300 hover:bg-gray-400"
                       }`}
                       aria-label={`Go to slide ${index + 1}`}
@@ -207,10 +255,7 @@ const Home = () => {
 
               {/* View All Button */}
               <div className="text-center mt-8">
-                <Link
-                  to="/products"
-                  className="btn-primary inline-block"
-                >
+                <Link to="/products" className="btn-primary inline-block">
                   View All Products →
                 </Link>
               </div>
