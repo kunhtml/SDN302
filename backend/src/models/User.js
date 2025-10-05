@@ -72,6 +72,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "https://via.placeholder.com/150",
     },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: [20, "Phone number cannot exceed 20 characters"],
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Bio cannot exceed 500 characters"],
+    },
     addresses: [addressSchema],
     isEmailVerified: {
       type: Boolean,
@@ -115,6 +125,11 @@ userSchema.pre("save", async function (next) {
 
 // Compare password
 userSchema.methods.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Alias for comparePassword (used in userController)
+userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
