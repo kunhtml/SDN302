@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import api from "../services/api";
+import { toast } from "react-toastify";
 
 // Products page with full functionality
 const Products = () => {
@@ -569,11 +570,390 @@ const OrderDetail = () => (
     <h1 className="text-3xl font-bold">Order Detail Page</h1>
   </div>
 );
-const Profile = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Profile Page</h1>
-  </div>
-);
+const Profile = () => {
+  const { user } = useSelector((state) => state.auth);
+  const [activeTab, setActiveTab] = useState("profile");
+  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState({
+    username: "",
+    email: "",
+    phone: "",
+    bio: "",
+    avatarURL: "",
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        username: user.username || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        bio: user.bio || "",
+        avatarURL: user.avatarURL || "",
+      });
+    }
+  }, [user]);
+
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const response = await api.put("/users/profile", profileData);
+      if (response.data.success) {
+        toast.success("Profile updated successfully!");
+        setIsEditing(false);
+        // Update user in Redux store if needed
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error(error.response?.data?.message || "Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await api.put("/users/password", {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      if (response.data.success) {
+        toast.success("Password updated successfully!");
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating password:", error);
+      toast.error(error.response?.data?.message || "Failed to update password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="container-custom py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Please login to view your profile</h2>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      <h1 className="text-3xl font-bold mb-8">My Account</h1>
+
+      {/* Tabs */}
+      <div className="flex gap-4 mb-8 border-b">
+        <button
+          onClick={() => setActiveTab("profile")}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === "profile"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-600 hover:text-gray-800"
+          }`}
+        >
+          Profile Information
+        </button>
+        <button
+          onClick={() => setActiveTab("security")}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === "security"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-600 hover:text-gray-800"
+          }`}
+        >
+          Security
+        </button>
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === "orders"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-600 hover:text-gray-800"
+          }`}
+        >
+          Order History
+        </button>
+      </div>
+
+      {/* Profile Tab */}
+      {activeTab === "profile" && (
+        <div className="max-w-2xl">
+          <div className="card">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Profile Information</h2>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="btn-secondary"
+                >
+                  Edit Profile
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleUpdateProfile}>
+              {/* Avatar */}
+              <div className="flex items-center gap-6 mb-6">
+                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {profileData.avatarURL ? (
+                    <img
+                      src={profileData.avatarURL}
+                      alt={profileData.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-4xl text-gray-400">
+                      {profileData.username?.charAt(0)?.toUpperCase() || "U"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold mb-2">
+                    Avatar URL
+                  </label>
+                  <input
+                    type="url"
+                    name="avatarURL"
+                    value={profileData.avatarURL}
+                    onChange={handleProfileChange}
+                    disabled={!isEditing}
+                    placeholder="https://example.com/avatar.jpg"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  />
+                </div>
+              </div>
+
+              {/* Username */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={profileData.username}
+                  onChange={handleProfileChange}
+                  disabled={!isEditing}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* Email */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={profileData.email}
+                  onChange={handleProfileChange}
+                  disabled={!isEditing}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={profileData.phone}
+                  onChange={handleProfileChange}
+                  disabled={!isEditing}
+                  placeholder="+1 (555) 000-0000"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* Bio */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  Bio
+                </label>
+                <textarea
+                  name="bio"
+                  value={profileData.bio}
+                  onChange={handleProfileChange}
+                  disabled={!isEditing}
+                  rows="4"
+                  placeholder="Tell us about yourself..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                />
+              </div>
+
+              {/* Role Badge */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold mb-2">
+                  Account Type
+                </label>
+                <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
+                  user.role === "seller"
+                    ? "bg-blue-100 text-blue-800"
+                    : user.role === "admin"
+                    ? "bg-purple-100 text-purple-800"
+                    : "bg-green-100 text-green-800"
+                }`}>
+                  {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
+                </span>
+              </div>
+
+              {isEditing && (
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary disabled:opacity-50"
+                  >
+                    {loading ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false);
+                      // Reset to original data
+                      if (user) {
+                        setProfileData({
+                          username: user.username || "",
+                          email: user.email || "",
+                          phone: user.phone || "",
+                          bio: user.bio || "",
+                          avatarURL: user.avatarURL || "",
+                        });
+                      }
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Security Tab */}
+      {activeTab === "security" && (
+        <div className="max-w-2xl">
+          <div className="card">
+            <h2 className="text-2xl font-bold mb-6">Change Password</h2>
+            <form onSubmit={handleUpdatePassword}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  name="currentPassword"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  minLength="6"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-sm text-gray-600 mt-1">
+                  Must be at least 6 characters
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary disabled:opacity-50"
+              >
+                {loading ? "Updating..." : "Update Password"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Orders Tab */}
+      {activeTab === "orders" && (
+        <div className="max-w-4xl">
+          <div className="card">
+            <h2 className="text-2xl font-bold mb-6">Order History</h2>
+            <div className="text-center py-12 text-gray-500">
+              <p className="mb-4">View your order history on the Orders page</p>
+              <Link to="/orders" className="btn-primary inline-block">
+                Go to Orders
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Chat = () => (
   <div className="container-custom py-8">
     <h1 className="text-3xl font-bold">Chat Page</h1>
