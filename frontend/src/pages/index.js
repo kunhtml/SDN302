@@ -5109,11 +5109,459 @@ const AdminUsers = () => {
     </div>
   );
 };
-const AdminProducts = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Admin Products</h1>
-  </div>
-);
+const AdminProducts = () => {
+  const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (filterStatus !== "all") params.append("status", filterStatus);
+      params.append("limit", "100");
+
+      const response = await api.get(`/admin/products?${params.toString()}`);
+      if (response.data.success) {
+        setProducts(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchProducts();
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm("Are you sure you want to delete this product?"))
+      return;
+
+    try {
+      const response = await api.delete(`/admin/products/${productId}`);
+      if (response.data.success) {
+        toast.success("Product deleted successfully");
+        fetchProducts();
+        setShowModal(false);
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast.error(error.response?.data?.message || "Failed to delete product");
+    }
+  };
+
+  const openProductDetail = (product) => {
+    setSelectedProduct(product);
+    setShowModal(true);
+  };
+
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "inactive":
+        return "bg-red-100 text-red-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getConditionBadge = (condition) => {
+    switch (condition) {
+      case "new":
+        return "bg-blue-100 text-blue-800";
+      case "used":
+        return "bg-orange-100 text-orange-800";
+      case "refurbished":
+        return "bg-purple-100 text-purple-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const matchSearch =
+      !searchTerm ||
+      product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.brand?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus =
+      filterStatus === "all" || product.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
+  if (loading) {
+    return (
+      <div className="container-custom py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-custom py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Product Management</h1>
+        <p className="text-gray-600">Manage all products in the system</p>
+      </div>
+
+      {/* Filters */}
+      <div className="card mb-6">
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div className="md:col-span-2">
+              <input
+                type="text"
+                placeholder="Search by product name or brand..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" className="btn-primary">
+            🔍 Search
+          </button>
+        </form>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="card bg-blue-50">
+          <p className="text-sm text-gray-600 mb-1">Total Products</p>
+          <p className="text-2xl font-bold text-blue-600">{products.length}</p>
+        </div>
+        <div className="card bg-green-50">
+          <p className="text-sm text-gray-600 mb-1">Active</p>
+          <p className="text-2xl font-bold text-green-600">
+            {products.filter((p) => p.status === "active").length}
+          </p>
+        </div>
+        <div className="card bg-yellow-50">
+          <p className="text-sm text-gray-600 mb-1">Pending</p>
+          <p className="text-2xl font-bold text-yellow-600">
+            {products.filter((p) => p.status === "pending").length}
+          </p>
+        </div>
+        <div className="card bg-purple-50">
+          <p className="text-sm text-gray-600 mb-1">Total Value</p>
+          <p className="text-2xl font-bold text-purple-600">
+            $
+            {products
+              .reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0)
+              .toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {/* Products Grid */}
+      {filteredProducts.length === 0 ? (
+        <div className="card text-center py-12">
+          <div className="text-6xl mb-4">📦</div>
+          <h3 className="text-xl font-bold mb-2">No products found</h3>
+          <p className="text-gray-600">Try adjusting your filters</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredProducts.map((product) => (
+            <div
+              key={product._id}
+              className="card hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => openProductDetail(product)}
+            >
+              {/* Product Image */}
+              <div className="relative mb-4 h-48 bg-gray-100 rounded-lg overflow-hidden">
+                {product.images && product.images.split(",")[0] ? (
+                  <img
+                    src={product.images.split(",")[0]}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://via.placeholder.com/300x200?text=No+Image";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-4xl">
+                    📦
+                  </div>
+                )}
+                <div className="absolute top-2 right-2">
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-semibold ${getStatusBadgeColor(
+                      product.status
+                    )}`}
+                  >
+                    {product.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Product Info */}
+              <div>
+                <h3 className="font-bold text-lg mb-2 line-clamp-2">
+                  {product.title}
+                </h3>
+
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-blue-600">
+                      ${product.price?.toFixed(2)}
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-semibold ${getConditionBadge(
+                        product.condition
+                      )}`}
+                    >
+                      {product.condition}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Stock: {product.quantity || 0}</span>
+                    {product.brand && <span>{product.brand}</span>}
+                  </div>
+                </div>
+
+                {/* Seller Info */}
+                {product.sellerId && (
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b">
+                    <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {product.sellerId.username?.charAt(0).toUpperCase() ||
+                        "S"}
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {product.sellerId.username || "Unknown Seller"}
+                    </span>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/products/${product._id}`);
+                    }}
+                    className="flex-1 btn-secondary text-sm"
+                  >
+                    👁️ View
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteProduct(product._id);
+                    }}
+                    className="flex-1 bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-lg font-semibold text-sm"
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Product Detail Modal */}
+      {showModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-6">
+                <h2 className="text-2xl font-bold">Product Details</h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Product Images */}
+              {selectedProduct.images && (
+                <div className="mb-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedProduct.images.split(",").map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img}
+                        alt={`${selectedProduct.title} ${idx + 1}`}
+                        className="w-full h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src =
+                            "https://via.placeholder.com/300x200?text=No+Image";
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Product Info */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">
+                    {selectedProduct.title}
+                  </h3>
+                  <p className="text-gray-600">{selectedProduct.description}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Price</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      ${selectedProduct.price?.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Stock</p>
+                    <p className="text-xl font-bold">
+                      {selectedProduct.quantity || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Condition</p>
+                    <span
+                      className={`inline-block px-3 py-1 rounded text-sm font-semibold ${getConditionBadge(
+                        selectedProduct.condition
+                      )}`}
+                    >
+                      {selectedProduct.condition}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Status</p>
+                    <span
+                      className={`inline-block px-3 py-1 rounded text-sm font-semibold ${getStatusBadgeColor(
+                        selectedProduct.status
+                      )}`}
+                    >
+                      {selectedProduct.status}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedProduct.brand && (
+                  <div>
+                    <p className="text-sm text-gray-600">Brand</p>
+                    <p className="font-semibold">{selectedProduct.brand}</p>
+                  </div>
+                )}
+
+                {selectedProduct.categoryId && (
+                  <div>
+                    <p className="text-sm text-gray-600">Category</p>
+                    <p className="font-semibold">
+                      {selectedProduct.categoryId.name || "Uncategorized"}
+                    </p>
+                  </div>
+                )}
+
+                {selectedProduct.sellerId && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Seller</p>
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                        {selectedProduct.sellerId.username
+                          ?.charAt(0)
+                          .toUpperCase() || "S"}
+                      </div>
+                      <div>
+                        <p className="font-semibold">
+                          {selectedProduct.sellerId.username || "Unknown"}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedProduct.sellerId.email || ""}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedProduct.tags &&
+                  selectedProduct.tags.length > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">Tags</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProduct.tags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                <div className="text-sm text-gray-500">
+                  <p>
+                    Created:{" "}
+                    {new Date(
+                      selectedProduct.createdAt
+                    ).toLocaleDateString()}
+                  </p>
+                  <p>Product ID: {selectedProduct._id}</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-6 pt-6 border-t">
+                <button
+                  onClick={() => navigate(`/products/${selectedProduct._id}`)}
+                  className="flex-1 btn-primary"
+                >
+                  View on Site
+                </button>
+                <button
+                  onClick={() => handleDeleteProduct(selectedProduct._id)}
+                  className="flex-1 bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-lg font-semibold"
+                >
+                  Delete Product
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 const AdminOrders = () => (
   <div className="container-custom py-8">
     <h1 className="text-3xl font-bold">Admin Orders</h1>
