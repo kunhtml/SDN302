@@ -1,0 +1,42 @@
+[
+  {
+    "storeName": "John's Store",
+    "description": "Quality products at great prices. Your one-stop shop for all your needs!",
+    "logo": "",
+    "banner": "",
+    "phone": "0123456780",
+    "email": "seller1@ebay.com",
+    "address": "123 Seller St",
+    "city": "Hanoi",
+    "state": "HN",
+    "country": "Vietnam",
+    "zipCode": "100000",
+    "isVerified": true,
+    "isActive": true,
+    "rating": 4.5,
+    "totalReviews": 0,
+    "slug": "john-store",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "storeName": "Alice's Store",
+    "description": "Premium selection of products. Fast shipping and excellent customer service!",
+    "logo": "",
+    "banner": "",
+    "phone": "0123456781",
+    "email": "seller2@ebay.com",
+    "address": "456 Market Rd",
+    "city": "HCMC",
+    "state": "HCM",
+    "country": "Vietnam",
+    "zipCode": "700000",
+    "isVerified": true,
+    "isActive": true,
+    "rating": 4.8,
+    "totalReviews": 0,
+    "slug": "alice-store",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "items": [
+      {
+        "name": "Chanel Coco Noir Eau De",
+        "quantity": 1,
+        "price": 129.99,
+        "image": "https://cdn.dummyjson.com/product-images/fragrances/chanel-coco-noir-eau-de/1.webp"
+      },
+      {
+        "name": "Dior J'adore",
+        "quantity": 2,
+        "price": 89.99,
+        "image": "https://cdn.dummyjson.com/product-images/fragrances/dior-j'adore/1.webp"
+      }
+    ],
+    "totalPrice": 309.97,
+    "createdAt": "2024-11-07T10:00:00.000Z",
+    "updatedAt": "2024-11-08T09:30:00.000Z"
+  },
+  {
+    "items": [
+      {
+        "name": "Apple",
+        "quantity": 5,
+        "price": 1.99,
+        "image": "https://cdn.dummyjson.com/product-images/groceries/apple/1.webp"
+      }
+    ],
+    "totalPrice": 9.95,
+    "createdAt": "2024-11-08T08:00:00.000Z",
+    "updatedAt": "2024-11-08T08:00:00.000Z"
+  }
+]

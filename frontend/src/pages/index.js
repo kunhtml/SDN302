@@ -220,9 +220,13 @@ const Products = () => {
               onClick={() => navigate(`/products/${product._id}`)}
             >
               <div className="aspect-square bg-gray-200 rounded-lg mb-4 overflow-hidden">
-                {product.images && product.images.length > 0 ? (
+                {product.images ? (
                   <img
-                    src={product.images[0]}
+                    src={
+                      typeof product.images === "string"
+                        ? product.images.split(",")[0]
+                        : product.images
+                    }
                     alt={product.title}
                     className="w-full h-full object-cover"
                   />

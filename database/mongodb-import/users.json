@@ -1,0 +1,106 @@
+[
+  {
+    "email": "admin@ebay.com",
+    "password": "$2a$10$YourHashedPasswordHere1",
+    "firstName": "Admin",
+    "lastName": "User",
+    "phone": "0123456789",
+    "role": "admin",
+    "isActive": true,
+    "emailVerified": true,
+    "avatar": "",
+    "address": {
+      "street": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "country": "Vietnam"
+    },
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "email": "seller1@ebay.com",
+    "password": "$2a$10$YourHashedPasswordHere2",
+    "firstName": "John",
+    "lastName": "Seller",
+    "phone": "0123456780",
+    "role": "seller",
+    "isActive": true,
+    "emailVerified": true,
+    "isSeller": true,
+    "sellerVerified": true,
+    "avatar": "",
+    "address": {
+      "street": "123 Seller St",
+      "city": "Hanoi",
+      "state": "HN",
+      "zipCode": "100000",
+      "country": "Vietnam"
+    },
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "email": "seller2@ebay.com",
+    "password": "$2a$10$YourHashedPasswordHere3",
+    "firstName": "Alice",
+    "lastName": "Vendor",
+    "phone": "0123456781",
+    "role": "seller",
+    "isActive": true,
+    "emailVerified": true,
+    "isSeller": true,
+    "sellerVerified": true,
+    "avatar": "",
+    "address": {
+      "street": "456 Market Rd",
+      "city": "HCMC",
+      "state": "HCM",
+      "zipCode": "700000",
+      "country": "Vietnam"
+    },
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "email": "buyer1@ebay.com",
+    "password": "$2a$10$YourHashedPasswordHere4",
+    "firstName": "Jane",
+    "lastName": "Buyer",
+    "phone": "0987654321",
+    "role": "buyer",
+    "isActive": true,
+    "emailVerified": true,
+    "avatar": "",
+    "address": {
+      "street": "789 Buyer Ave",
+      "city": "Hanoi",
+      "state": "HN",
+      "zipCode": "100000",
+      "country": "Vietnam"
+    },
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "email": "buyer2@ebay.com",
+    "password": "$2a$10$YourHashedPasswordHere5",
+    "firstName": "Bob",
+    "lastName": "Shopper",
+    "phone": "0987654322",
+    "role": "buyer",
+    "isActive": true,
+    "emailVerified": true,
+    "avatar": "",
+    "address": {
+      "street": "321 Shop Blvd",
+      "city": "Danang",
+      "state": "DN",
+      "zipCode": "550000",
+      "country": "Vietnam"
+    },
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+]

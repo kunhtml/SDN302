@@ -217,7 +217,8 @@ exports.updateOrderStatus = async (req, res) => {
 
     // Check authorization - seller can update if they have items in this order
     const isSeller = order.items.some(
-      (item) => item.seller && item.seller.toString() === req.user._id.toString()
+      (item) =>
+        item.seller && item.seller.toString() === req.user._id.toString()
     );
 
     if (!isSeller && req.user.role !== "admin") {

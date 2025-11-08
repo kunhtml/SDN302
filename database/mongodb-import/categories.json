@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Electronics",
+    "slug": "electronics",
+    "description": "Electronic devices and gadgets",
+    "isActive": true
+  },
+  {
+    "name": "Fashion",
+    "slug": "fashion",
+    "description": "Clothing, shoes, and accessories",
+    "isActive": true
+  },
+  {
+    "name": "Home & Garden",
+    "slug": "home-garden",
+    "description": "Home decor, furniture, and garden supplies",
+    "isActive": true
+  },
+  {
+    "name": "Beauty & Health",
+    "slug": "beauty-health",
+    "description": "Beauty products and health care items",
+    "isActive": true
+  },
+  {
+    "name": "Sports & Outdoors",
+    "slug": "sports-outdoors",
+    "description": "Sports equipment and outdoor gear",
+    "isActive": true
+  },
+  {
+    "name": "Jewelry & Watches",
+    "slug": "jewelry-watches",
+    "description": "Jewelry, watches, and accessories",
+    "isActive": true
+  },
+  {
+    "name": "Automotive",
+    "slug": "automotive",
+    "description": "Car parts and automotive accessories",
+    "isActive": true
+  }
+]

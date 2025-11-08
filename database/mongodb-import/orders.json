@@ -1,0 +1,104 @@
+[
+  {
+    "orderNumber": "ORD-2024-001",
+    "items": [
+      {
+        "name": "Essence Mascara Lash Princess",
+        "quantity": 2,
+        "price": 9.99,
+        "image": "https://cdn.dummyjson.com/product-images/beauty/essence-mascara-lash-princess/1.webp"
+      },
+      {
+        "name": "Red Lipstick",
+        "quantity": 1,
+        "price": 12.99,
+        "image": "https://cdn.dummyjson.com/product-images/beauty/red-lipstick/1.webp"
+      }
+    ],
+    "shippingAddress": {
+      "fullName": "Jane Buyer",
+      "phone": "0987654321",
+      "street": "789 Buyer Ave",
+      "city": "Hanoi",
+      "state": "HN",
+      "zipCode": "100000",
+      "country": "Vietnam"
+    },
+    "paymentMethod": "cod",
+    "itemsPrice": 32.97,
+    "taxPrice": 0,
+    "shippingPrice": 2.00,
+    "totalPrice": 34.97,
+    "status": "delivered",
+    "paymentStatus": "paid",
+    "isPaid": true,
+    "paidAt": "2024-10-15T10:30:00.000Z",
+    "isDelivered": true,
+    "deliveredAt": "2024-10-20T15:45:00.000Z",
+    "createdAt": "2024-10-15T10:00:00.000Z",
+    "updatedAt": "2024-10-20T15:45:00.000Z"
+  },
+  {
+    "orderNumber": "ORD-2024-002",
+    "items": [
+      {
+        "name": "Calvin Klein CK One",
+        "quantity": 1,
+        "price": 49.99,
+        "image": "https://cdn.dummyjson.com/product-images/fragrances/calvin-klein-ck-one/1.webp"
+      }
+    ],
+    "shippingAddress": {
+      "fullName": "Bob Shopper",
+      "phone": "0987654322",
+      "street": "321 Shop Blvd",
+      "city": "Danang",
+      "state": "DN",
+      "zipCode": "550000",
+      "country": "Vietnam"
+    },
+    "paymentMethod": "paypal",
+    "itemsPrice": 49.99,
+    "taxPrice": 0,
+    "shippingPrice": 3.00,
+    "totalPrice": 52.99,
+    "status": "processing",
+    "paymentStatus": "paid",
+    "isPaid": true,
+    "paidAt": "2024-11-05T09:20:00.000Z",
+    "isDelivered": false,
+    "createdAt": "2024-11-05T09:00:00.000Z",
+    "updatedAt": "2024-11-05T09:20:00.000Z"
+  },
+  {
+    "orderNumber": "ORD-2024-003",
+    "items": [
+      {
+        "name": "Annibale Colombo Bed",
+        "quantity": 1,
+        "price": 1899.99,
+        "image": "https://cdn.dummyjson.com/product-images/furniture/annibale-colombo-bed/1.webp"
+      }
+    ],
+    "shippingAddress": {
+      "fullName": "Jane Buyer",
+      "phone": "0987654321",
+      "street": "789 Buyer Ave",
+      "city": "Hanoi",
+      "state": "HN",
+      "zipCode": "100000",
+      "country": "Vietnam"
+    },
+    "paymentMethod": "bank_transfer",
+    "itemsPrice": 1899.99,
+    "taxPrice": 0,
+    "shippingPrice": 50.00,
+    "totalPrice": 1949.99,
+    "status": "pending",
+    "paymentStatus": "pending",
+    "isPaid": false,
+    "isDelivered": false,
+    "createdAt": "2024-11-08T08:00:00.000Z",
+    "updatedAt": "2024-11-08T08:00:00.000Z"
+  }
+]

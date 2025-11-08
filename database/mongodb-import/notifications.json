@@ -1,0 +1,34 @@
+[
+  {
+    "type": "order",
+    "title": "Order Delivered",
+    "message": "Your order ORD-2024-001 has been delivered successfully!",
+    "isRead": true,
+    "createdAt": "2024-10-20T15:45:00.000Z",
+    "updatedAt": "2024-10-21T08:00:00.000Z"
+  },
+  {
+    "type": "promotion",
+    "title": "New Coupon Available!",
+    "message": "Use code MEGA25 to get 25% off on your next purchase!",
+    "isRead": false,
+    "createdAt": "2024-11-01T00:00:00.000Z",
+    "updatedAt": "2024-11-01T00:00:00.000Z"
+  },
+  {
+    "type": "order",
+    "title": "Payment Confirmed",
+    "message": "Your payment for order ORD-2024-002 has been confirmed.",
+    "isRead": false,
+    "createdAt": "2024-11-05T09:20:00.000Z",
+    "updatedAt": "2024-11-05T09:20:00.000Z"
+  },
+  {
+    "type": "product",
+    "title": "Product Back in Stock",
+    "message": "Essence Mascara Lash Princess is now back in stock!",
+    "isRead": false,
+    "createdAt": "2024-10-01T10:00:00.000Z",
+    "updatedAt": "2024-10-01T10:00:00.000Z"
+  }
+]

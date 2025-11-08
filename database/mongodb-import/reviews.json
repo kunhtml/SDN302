@@ -1,0 +1,56 @@
+[
+  {
+    "rating": 5,
+    "comment": "Absolutely love this mascara! My lashes look amazing and it lasts all day without smudging.",
+    "isVerifiedPurchase": true,
+    "helpful": 15,
+    "notHelpful": 0,
+    "createdAt": "2024-10-22T14:30:00.000Z",
+    "updatedAt": "2024-10-22T14:30:00.000Z"
+  },
+  {
+    "rating": 4,
+    "comment": "Great lipstick color! Very pigmented and stays on for hours. Only downside is it can be a bit drying.",
+    "isVerifiedPurchase": true,
+    "helpful": 8,
+    "notHelpful": 1,
+    "createdAt": "2024-10-23T10:15:00.000Z",
+    "updatedAt": "2024-10-23T10:15:00.000Z"
+  },
+  {
+    "rating": 5,
+    "comment": "This perfume smells incredible! Fresh and clean scent that's perfect for everyday wear.",
+    "isVerifiedPurchase": false,
+    "helpful": 12,
+    "notHelpful": 0,
+    "createdAt": "2024-11-01T16:45:00.000Z",
+    "updatedAt": "2024-11-01T16:45:00.000Z"
+  },
+  {
+    "rating": 5,
+    "comment": "Beautiful bed frame! Very sturdy and elegant. The quality is outstanding for the price.",
+    "isVerifiedPurchase": false,
+    "helpful": 20,
+    "notHelpful": 1,
+    "createdAt": "2024-10-28T11:20:00.000Z",
+    "updatedAt": "2024-10-28T11:20:00.000Z"
+  },
+  {
+    "rating": 4,
+    "comment": "Good eyeshadow palette with nice color variety. The mirror is convenient for travel.",
+    "isVerifiedPurchase": false,
+    "helpful": 6,
+    "notHelpful": 0,
+    "createdAt": "2024-10-25T09:00:00.000Z",
+    "updatedAt": "2024-10-25T09:00:00.000Z"
+  },
+  {
+    "rating": 3,
+    "comment": "Decent powder but not the best I've tried. Does the job for setting makeup.",
+    "isVerifiedPurchase": false,
+    "helpful": 3,
+    "notHelpful": 2,
+    "createdAt": "2024-10-26T13:30:00.000Z",
+    "updatedAt": "2024-10-26T13:30:00.000Z"
+  }
+]
