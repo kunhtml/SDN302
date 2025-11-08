@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect, authorize } = require("../middleware/auth");
 const {
   getDashboardStats,
+  getTrafficStats,
   getUsers,
   getUserById,
   updateUserStatus,
@@ -11,6 +12,7 @@ const {
   getProducts,
   deleteProduct,
   getOrders,
+  updateOrderStatus,
   getDisputes,
   resolveDispute,
 } = require("../controllers/adminController");
@@ -20,6 +22,7 @@ router.use(authorize("admin"));
 
 // Dashboard
 router.get("/stats", getDashboardStats);
+router.get("/stats/traffic", getTrafficStats);
 
 // Users
 router.get("/users", getUsers);
@@ -34,6 +37,7 @@ router.delete("/products/:id", deleteProduct);
 
 // Orders
 router.get("/orders", getOrders);
+router.put("/orders/:id/status", updateOrderStatus);
 
 // Disputes
 router.get("/disputes", getDisputes);

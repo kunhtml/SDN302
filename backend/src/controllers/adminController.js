@@ -70,7 +70,12 @@ exports.getUsers = async (req, res) => {
 
     // Filter by role
     if (role) {
-      query.role = role;
+      // Special role filter for pending seller requests
+      if (role === "requests") {
+        query.sellerVerificationStatus = "pending";
+      } else {
+        query.role = role;
+      }
     }
 
     // Filter by status
@@ -183,11 +188,17 @@ exports.updateUserRole = async (req, res) => {
       });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true }
-    ).select("-password");
+    const update = { role };
+    // If promoting to seller, mark seller flags
+    if (role === "seller") {
+      update.isSeller = true;
+      update.sellerVerified = true;
+      update.sellerVerificationStatus = "verified";
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+    }).select("-password");
 
     if (!user) {
       return res.status(404).json({
@@ -332,13 +343,37 @@ exports.deleteProduct = async (req, res) => {
 // @access  Private (Admin)
 exports.getOrders = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 10, status, paymentStatus, search } = req.query;
 
     const query = {};
 
     // Filter by status
-    if (status) {
+    if (status && status !== "all") {
       query.status = status;
+    }
+
+    // Filter by payment status
+    if (paymentStatus && paymentStatus !== "all") {
+      query.paymentStatus = paymentStatus;
+    }
+
+    // Search by order number or buyer name
+    if (search) {
+      const users = await require("../models/User")
+        .find({
+          $or: [
+            { username: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        })
+        .select("_id");
+
+      const userIds = users.map((u) => u._id);
+
+      query.$or = [
+        { orderNumber: { $regex: search, $options: "i" } },
+        { buyerId: { $in: userIds } },
+      ];
     }
 
     const orders = await Order.find(query)
@@ -353,12 +388,9 @@ exports.getOrders = async (req, res) => {
     res.status(200).json({
       success: true,
       data: orders,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
-      },
+      pages: Math.ceil(total / parseInt(limit)),
+      page: parseInt(page),
+      total,
     });
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -450,6 +482,242 @@ exports.resolveDispute = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to resolve dispute",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Update order status
+// @route   PUT /api/v1/admin/orders/:id/status
+// @access  Private (Admin)
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = [
+      "pending",
+      "processing",
+      "confirmed",
+      "shipped",
+      "delivered",
+      "cancelled",
+      "refunded",
+    ];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order status",
+      });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Update order status
+    order.status = status;
+
+    // Update delivered date if status is delivered
+    if (status === "delivered" && !order.deliveredAt) {
+      order.deliveredAt = new Date();
+    }
+
+    // Update payment status if delivered
+    if (status === "delivered" && order.paymentStatus === "pending") {
+      order.paymentStatus = "paid";
+      order.paidAt = new Date();
+    }
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Order status updated successfully",
+      data: order,
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update order status",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get traffic analytics data
+// @route   GET /api/v1/admin/stats/traffic
+// @access  Private (Admin)
+exports.getTrafficStats = async (req, res) => {
+  try {
+    const { period = "month" } = req.query; // day, month, year
+    const now = new Date();
+    let startDate, groupBy;
+
+    // Determine date range and grouping based on period
+    if (period === "day") {
+      // Last 7 days
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      groupBy = { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } };
+    } else if (period === "year") {
+      // Last 12 months
+      startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+      groupBy = { $dateToString: { format: "%Y-%m", date: "$createdAt" } };
+    } else {
+      // Default: Last 7 months
+      startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      groupBy = { $dateToString: { format: "%Y-%m", date: "$createdAt" } };
+    }
+
+    // Get product views by period
+    const viewsData = await Product.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: groupBy,
+          pageviews: { $sum: "$views" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Get orders count by period
+    const ordersData = await Order.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: groupBy,
+          visits: { $count: {} },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Get unique users by period
+    const usersData = await User.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: groupBy,
+          unique: { $count: {} },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Create maps for easier lookup
+    const viewsMap = {};
+    viewsData.forEach((item) => {
+      viewsMap[item._id] = item.pageviews;
+    });
+
+    const ordersMap = {};
+    ordersData.forEach((item) => {
+      ordersMap[item._id] = item.visits;
+    });
+
+    const usersMap = {};
+    usersData.forEach((item) => {
+      usersMap[item._id] = item.unique;
+    });
+
+    // Generate data for all periods (fill gaps with 0)
+    const trafficData = [];
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    if (period === "day") {
+      // Last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateStr = date.toISOString().split("T")[0];
+        const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+
+        trafficData.push({
+          month: dayName,
+          date: dateStr,
+          pageviews: viewsMap[dateStr] || 0,
+          visits: ordersMap[dateStr] || 0,
+          unique: usersMap[dateStr] || 0,
+        });
+      }
+    } else if (period === "year") {
+      // Last 12 months
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const dateStr = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
+        const monthName = monthNames[date.getMonth()];
+
+        trafficData.push({
+          month: monthName,
+          date: dateStr,
+          pageviews: viewsMap[dateStr] || 0,
+          visits: ordersMap[dateStr] || 0,
+          unique: usersMap[dateStr] || 0,
+        });
+      }
+    } else {
+      // Default: Last 7 months
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const dateStr = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
+        const monthName = monthNames[date.getMonth()];
+
+        trafficData.push({
+          month: monthName,
+          date: dateStr,
+          pageviews: viewsMap[dateStr] || 0,
+          visits: ordersMap[dateStr] || 0,
+          unique: usersMap[dateStr] || 0,
+        });
+      }
+    }
+
+    // Calculate totals
+    const totalPageviews = trafficData.reduce(
+      (sum, item) => sum + item.pageviews,
+      0
+    );
+    const totalVisits = trafficData.reduce((sum, item) => sum + item.visits, 0);
+    const totalUnique = trafficData.reduce((sum, item) => sum + item.unique, 0);
+
+    res.status(200).json({
+      success: true,
+      data: trafficData,
+      summary: {
+        totalPageviews,
+        totalVisits,
+        totalUnique,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching traffic stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch traffic stats",
       error: error.message,
     });
   }

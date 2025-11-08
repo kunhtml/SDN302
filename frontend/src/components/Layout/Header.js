@@ -2,7 +2,14 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../../redux/slices/authSlice";
-import { FiShoppingCart, FiBell, FiUser, FiSearch } from "react-icons/fi";
+import {
+  FiShoppingCart,
+  FiBell,
+  FiUser,
+  FiSearch,
+  FiMessageSquare,
+} from "react-icons/fi";
+// RoleSwitcher removed from header per UX change: requests handled from profile
 
 const Header = () => {
   const dispatch = useDispatch();
@@ -10,11 +17,40 @@ const Header = () => {
   const { totalItems } = useSelector((state) => state.cart);
   const { unreadCount } = useSelector((state) => state.notification);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // role switcher removed: users request seller from profile
   const dropdownRef = useRef(null);
 
   const handleLogout = () => {
     dispatch(logout());
     setIsDropdownOpen(false);
+  };
+
+  const getRoleBadge = () => {
+    if (!user) return null;
+
+    const roleConfig = {
+      user: { label: "Buyer", color: "bg-blue-100 text-blue-700", icon: "🛍️" },
+      seller: {
+        label: "Seller",
+        color: "bg-green-100 text-green-700",
+        icon: "🏪",
+      },
+      admin: {
+        label: "Admin",
+        color: "bg-purple-100 text-purple-700",
+        icon: "👑",
+      },
+    };
+
+    const config = roleConfig[user.role] || roleConfig.user;
+
+    return (
+      <span
+        className={`text-xs px-2 py-1 rounded-full ${config.color} font-semibold`}
+      >
+        {config.icon} {config.label}
+      </span>
+    );
   };
 
   // Close dropdown when clicking outside
@@ -71,6 +107,10 @@ const Header = () => {
                   )}
                 </Link>
 
+                <Link to="/chat" className="relative hover:text-blue-600">
+                  <FiMessageSquare size={24} />
+                </Link>
+
                 <Link
                   to="/notifications"
                   className="relative hover:text-blue-600"
@@ -89,7 +129,10 @@ const Header = () => {
                     className="flex items-center space-x-2 hover:text-blue-600"
                   >
                     <FiUser size={24} />
-                    <span>{user?.firstName}</span>
+                    <div className="flex flex-col items-start">
+                      <span>{user?.firstName}</span>
+                      {getRoleBadge()}
+                    </div>
                   </button>
 
                   {isDropdownOpen && (
@@ -101,14 +144,19 @@ const Header = () => {
                       >
                         Profile
                       </Link>
-                      <Link
-                        to="/orders"
-                        className="block px-4 py-2 hover:bg-gray-100"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        My Orders
-                      </Link>
-                      {user?.isSeller && (
+                      {user?.role !== "admin" && user?.role !== "seller" && (
+                        <Link
+                          to="/orders"
+                          className="block px-4 py-2 hover:bg-gray-100"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          My Orders
+                        </Link>
+                      )}
+
+                      {/* Role switching removed from header. Users can request seller access from their Profile page. */}
+
+                      {user?.role === "seller" && (
                         <Link
                           to="/seller"
                           className="block px-4 py-2 hover:bg-gray-100"
@@ -149,6 +197,8 @@ const Header = () => {
           </nav>
         </div>
       </div>
+
+      {/* RoleSwitcher modal removed */}
     </header>
   );
 };

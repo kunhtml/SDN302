@@ -1,21 +1,31 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middleware/auth");
+const { protect, isVerifiedSeller } = require("../middleware/auth");
+const {
+  getProductReviews,
+  getSellerReviews,
+  createReview,
+  updateReview,
+  deleteReview,
+  addSellerResponse,
+  updateSellerResponse,
+  deleteSellerResponse,
+  markHelpful,
+} = require("../controllers/reviewController");
 
-router.get("/product/:productId", (req, res) => {
-  res.json({ success: true, data: [], message: "Get product reviews" });
-});
+// Public routes
+router.get("/product/:productId", getProductReviews);
 
-router.post("/", protect, (req, res) => {
-  res.json({ success: true, message: "Review created" });
-});
+// Protected routes - Buyer
+router.post("/", protect, createReview);
+router.put("/:id", protect, updateReview);
+router.delete("/:id", protect, deleteReview);
+router.post("/:id/helpful", protect, markHelpful);
 
-router.put("/:id", protect, (req, res) => {
-  res.json({ success: true, message: "Review updated" });
-});
-
-router.delete("/:id", protect, (req, res) => {
-  res.json({ success: true, message: "Review deleted" });
-});
+// Protected routes - Seller
+router.get("/seller", protect, isVerifiedSeller, getSellerReviews);
+router.post("/:id/response", protect, isVerifiedSeller, addSellerResponse);
+router.put("/:id/response", protect, isVerifiedSeller, updateSellerResponse);
+router.delete("/:id/response", protect, isVerifiedSeller, deleteSellerResponse);
 
 module.exports = router;

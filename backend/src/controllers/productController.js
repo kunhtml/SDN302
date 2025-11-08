@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const Category = require("../models/Category");
 const logger = require("../config/logger");
 
 // @desc    Get all products with filters, search, pagination
@@ -312,6 +313,30 @@ exports.getAuctionProducts = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: "Error fetching auction products",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get all categories
+// @route   GET /api/v1/product/categories
+// @access  Public
+exports.getCategories = async (req, res, next) => {
+  try {
+    const categories = await Category.find({ isActive: true })
+      .sort({ name: 1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: categories.length,
+      data: categories,
+    });
+  } catch (error) {
+    logger.error(`Error getting categories: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching categories",
       error: error.message,
     });
   }

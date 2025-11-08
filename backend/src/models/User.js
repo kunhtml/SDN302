@@ -101,6 +101,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // sellerVerificationStatus tracks request/approval lifecycle: null | 'pending' | 'verified' | 'rejected'
+    sellerVerificationStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: null,
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     twoFactorSecret: String,

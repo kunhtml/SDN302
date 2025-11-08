@@ -11,11 +11,13 @@ const {
 
 // Public routes
 router.get("/", getStores);
-router.get("/:id", getStore);
 
-// Protected routes (Seller only)
+// Protected routes (Seller only) - Must come before /:id to avoid conflicts
 router.get("/my-store", protect, isVerifiedSeller, getMyStore);
 router.post("/", protect, isVerifiedSeller, createStore);
 router.put("/", protect, isVerifiedSeller, updateStore);
+
+// Dynamic routes - Must come after specific routes
+router.get("/:id", getStore);
 
 module.exports = router;

@@ -7,6 +7,8 @@ const {
   updatePassword,
   getAddresses,
   addAddress,
+  switchRole,
+  requestSeller,
 } = require("../controllers/userController");
 
 router.use(protect);
@@ -19,5 +21,9 @@ router.put("/password", updatePassword);
 // Address routes
 router.get("/addresses", getAddresses);
 router.post("/addresses", addAddress);
+
+// Role switching routes
+router.post("/switch-role", switchRole);
+router.post("/request-seller", requestSeller);
 
 module.exports = router;

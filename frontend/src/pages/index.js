@@ -5,9 +5,38 @@ import {
   useParams,
   Link,
 } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { setCredentials } from "../redux/slices/authSlice";
 import api from "../services/api";
 import { toast } from "react-toastify";
+import ImageUpload from "../components/ImageUpload";
+import ChatComponent from "./Chat";
+import {
+  Star,
+  Heart,
+  Package,
+  ShoppingCart,
+  Trash,
+  Lightbulb,
+  Lock,
+  CreditCard,
+  Bank,
+  Money,
+  Ticket,
+  CheckCircle,
+  Truck,
+  Printer,
+  XCircle,
+  Plus,
+  PencilSimple,
+  Users,
+  CurrencyCircleDollar,
+  Warning,
+  MagnifyingGlass,
+  LockOpen,
+  Eye,
+  Storefront,
+} from "phosphor-react";
 
 // Products page with full functionality
 const Products = () => {
@@ -258,9 +287,16 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [sellerFeedback, setSellerFeedback] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [savedSeller, setSavedSeller] = useState(false);
+  const [savingSeller, setSavingSeller] = useState(false);
 
   useEffect(() => {
     fetchProduct();
+    fetchReviews();
   }, [id]);
 
   useEffect(() => {
@@ -268,7 +304,28 @@ const ProductDetail = () => {
       const images = product.images.split(",");
       setSelectedImage(images[0] || "");
     }
+    if (product && product.sellerId && product.sellerId._id) {
+      fetchSellerFeedback(product.sellerId._id);
+      checkIfSellerSaved(product.sellerId._id);
+    }
   }, [product]);
+
+  const checkIfSellerSaved = async (sellerId) => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await api.get("/users/saved-sellers");
+      if (response.data.success) {
+        const savedSellers = response.data.data || [];
+        const isSaved = savedSellers.some(
+          (seller) => seller._id === sellerId || seller.sellerId === sellerId
+        );
+        setSavedSeller(isSaved);
+      }
+    } catch (error) {
+      console.error("Error checking saved seller:", error);
+    }
+  };
 
   const fetchProduct = async () => {
     try {
@@ -289,6 +346,34 @@ const ProductDetail = () => {
       setError(err.response?.data?.message || "Failed to fetch product");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const response = await api.get(`/reviews/product/${id}`);
+      if (response.data.success) {
+        setReviews(response.data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const fetchSellerFeedback = async (sellerId) => {
+    try {
+      setFeedbackLoading(true);
+      const response = await api.get(`/feedback/seller/${sellerId}`);
+      if (response.data.success) {
+        setSellerFeedback(response.data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching seller feedback:", err);
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -319,6 +404,60 @@ const ProductDetail = () => {
       toast.error(error.response?.data?.message || "Failed to add to cart");
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleViewSellerItems = () => {
+    if (product.sellerId && product.sellerId._id) {
+      navigate(`/products?sellerId=${product.sellerId._id}`);
+    }
+  };
+
+  const handleContactSeller = () => {
+    if (!isAuthenticated) {
+      toast.info("Please login to contact seller");
+      navigate("/login");
+      return;
+    }
+    if (product.sellerId && product.sellerId._id) {
+      // Navigate to chat with seller and product context
+      navigate(`/chat?seller=${product.sellerId._id}&product=${product._id}`);
+    }
+  };
+
+  const handleSaveSeller = async () => {
+    if (!isAuthenticated) {
+      toast.info("Please login to save sellers");
+      navigate("/login");
+      return;
+    }
+
+    if (!product.sellerId || !product.sellerId._id) {
+      toast.error("Seller information not available");
+      return;
+    }
+
+    try {
+      setSavingSeller(true);
+      // Toggle saved state
+      if (savedSeller) {
+        // Unsave seller
+        await api.delete(`/users/saved-sellers/${product.sellerId._id}`);
+        setSavedSeller(false);
+        toast.success("Seller removed from saved list");
+      } else {
+        // Save seller
+        await api.post("/users/saved-sellers", {
+          sellerId: product.sellerId._id,
+        });
+        setSavedSeller(true);
+        toast.success("Seller saved successfully!");
+      }
+    } catch (error) {
+      console.error("Error saving seller:", error);
+      toast.error(error.response?.data?.message || "Failed to save seller");
+    } finally {
+      setSavingSeller(false);
     }
   };
 
@@ -573,26 +712,377 @@ const ProductDetail = () => {
           </div>
 
           {product.sellerId && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold mb-2">Seller Information</h3>
-              <div className="flex items-center gap-3">
-                {product.sellerId.avatarURL && (
-                  <img
-                    src={product.sellerId.avatarURL}
-                    alt={product.sellerId.username}
-                    className="w-12 h-12 rounded-full"
-                  />
-                )}
-                <div>
-                  <p className="font-semibold">{product.sellerId.username}</p>
-                  <p className="text-sm text-gray-600">
-                    {product.sellerId.email}
-                  </p>
+            <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
+              {/* Seller Header */}
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold">About this seller</h3>
+              </div>
+
+              {/* Seller Info */}
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  {product.sellerId.avatarURL ? (
+                    <img
+                      src={product.sellerId.avatarURL}
+                      alt={product.sellerId.username}
+                      className="w-24 h-24 rounded-full border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-3xl font-bold">
+                      {product.sellerId.username?.charAt(0).toUpperCase() ||
+                        "S"}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-xl font-bold mb-1">
+                      {product.sellerId.username || "Seller"}
+                    </h4>
+                    {sellerFeedback && (
+                      <div className="text-sm text-gray-600">
+                        <span className="font-semibold">
+                          {sellerFeedback.positiveRate.toFixed(1)}%
+                        </span>{" "}
+                        positive feedback
+                        <span className="mx-2">•</span>
+                        <span className="font-semibold">
+                          {sellerFeedback.totalSales}
+                        </span>{" "}
+                        items sold
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {product.sellerId.createdAt && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span>
+                      Joined{" "}
+                      {new Date(product.sellerId.createdAt).toLocaleDateString(
+                        "en-US",
+                        { month: "short", year: "numeric" }
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="space-y-3 mb-6">
+                  <button
+                    onClick={handleViewSellerItems}
+                    className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Seller's other items
+                  </button>
+                  <button
+                    onClick={handleContactSeller}
+                    className="w-full py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    Contact
+                  </button>
+                  <button
+                    onClick={handleSaveSeller}
+                    disabled={savingSeller}
+                    className={`w-full py-3 border font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      savedSeller
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <Heart
+                      size={20}
+                      weight={savedSeller ? "fill" : "regular"}
+                      className={savedSeller ? "text-blue-600" : ""}
+                    />
+                    <span>{savedSeller ? "Seller saved" : "Save seller"}</span>
+                  </button>
+                </div>
+
+                {/* Detailed Seller Ratings */}
+                {sellerFeedback && !feedbackLoading && (
+                  <div>
+                    <h4 className="text-lg font-bold mb-4">
+                      Detailed seller ratings
+                    </h4>
+                    <div className="space-y-3">
+                      {/* Accurate description */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">
+                          Accurate description
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gray-800 rounded-full"
+                              style={{
+                                width: `${
+                                  (sellerFeedback.averageRating / 5) * 100
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-semibold w-8 text-right">
+                            {sellerFeedback.averageRating.toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Reasonable shipping cost */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">
+                          Reasonable shipping cost
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gray-800 rounded-full"
+                              style={{
+                                width: `${
+                                  (sellerFeedback.responseRate / 100) * 100
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-semibold w-8 text-right">
+                            {((sellerFeedback.responseRate / 100) * 5).toFixed(
+                              1
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Shipping speed */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">
+                          Shipping speed
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gray-800 rounded-full"
+                              style={{
+                                width: `${
+                                  (sellerFeedback.onTimeDeliveryRate / 100) *
+                                  100
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-semibold w-8 text-right">
+                            {(
+                              (sellerFeedback.onTimeDeliveryRate / 100) *
+                              5
+                            ).toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Communication */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">
+                          Communication
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gray-800 rounded-full"
+                              style={{
+                                width: `${
+                                  (sellerFeedback.positiveRate / 100) * 100
+                                }%`,
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-semibold w-8 text-right">
+                            {((sellerFeedback.positiveRate / 100) * 5).toFixed(
+                              1
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-xs text-gray-500">
+                      Average for the last 12 months
+                    </div>
+                  </div>
+                )}
+
+                {feedbackLoading && (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
+
+        {reviewsLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="bg-gray-50 rounded-lg p-8 text-center">
+            <p className="text-gray-600">
+              No reviews yet. Be the first to review this product!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Reviews Summary */}
+            <div className="bg-gray-50 rounded-lg p-6">
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-blue-600">
+                    {(
+                      reviews.reduce((sum, r) => sum + r.rating, 0) /
+                      reviews.length
+                    ).toFixed(1)}
+                  </div>
+                  <div className="text-yellow-500 text-2xl mt-1">
+                    {"⭐".repeat(
+                      Math.round(
+                        reviews.reduce((sum, r) => sum + r.rating, 0) /
+                          reviews.length
+                      )
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {reviews.length}{" "}
+                    {reviews.length === 1 ? "review" : "reviews"}
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = reviews.filter(
+                      (r) => r.rating === star
+                    ).length;
+                    const percentage =
+                      reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                    return (
+                      <div key={star} className="flex items-center gap-2 mb-1">
+                        <span className="text-sm w-12">{star} star</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-yellow-500 h-2 rounded-full"
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-600 w-12 text-right">
+                          {count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Individual Reviews */}
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div
+                  key={review._id}
+                  className="bg-white border border-gray-200 rounded-lg p-6"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* User Avatar */}
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                      {review.user?.username?.charAt(0).toUpperCase() || "U"}
+                    </div>
+
+                    <div className="flex-1">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h4 className="font-semibold">
+                            {review.user?.username || "Anonymous"}
+                          </h4>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <div className="text-yellow-500">
+                              {"⭐".repeat(review.rating)}
+                            </div>
+                            {review.isVerifiedPurchase && (
+                              <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                                ✓ Verified Purchase
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {/* Review Comment */}
+                      <p className="text-gray-700 mb-3">{review.comment}</p>
+
+                      {/* Review Images */}
+                      {review.images && review.images.length > 0 && (
+                        <div className="flex gap-2 mb-3">
+                          {review.images.map((img, idx) => (
+                            <img
+                              key={idx}
+                              src={img.url}
+                              alt={`Review ${idx + 1}`}
+                              className="w-20 h-20 object-cover rounded"
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Seller Response */}
+                      {review.sellerResponse && (
+                        <div className="mt-4 ml-6 pl-4 border-l-2 border-blue-200 bg-blue-50 p-3 rounded">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-blue-800">
+                              Seller Response
+                            </span>
+                            <span className="text-xs text-gray-600">
+                              {new Date(
+                                review.sellerResponse.respondedAt
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">
+                            {review.sellerResponse.comment}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Helpful Button */}
+                      <div className="mt-3 flex items-center gap-4">
+                        <button className="text-sm text-gray-600 hover:text-blue-600 flex items-center gap-1">
+                          <span>👍</span>
+                          <span>Helpful ({review.helpful || 0})</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2405,6 +2895,8 @@ const OrderDetail = () => {
 };
 const Profile = () => {
   const { user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+  const [requestingSeller, setRequestingSeller] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -2534,16 +3026,6 @@ const Profile = () => {
         >
           Security
         </button>
-        <button
-          onClick={() => setActiveTab("orders")}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === "orders"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-600 hover:text-gray-800"
-          }`}
-        >
-          Order History
-        </button>
       </div>
 
       {/* Profile Tab */}
@@ -2553,46 +3035,103 @@ const Profile = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">Profile Information</h2>
               {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="btn-secondary"
-                >
-                  Edit Profile
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="btn-secondary"
+                  >
+                    Edit Profile
+                  </button>
+
+                  {user?.role !== "seller" && user?.role !== "admin" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setRequestingSeller(true);
+                          const payload = {
+                            phoneNumber: profileData.phone,
+                            description: profileData.bio,
+                          };
+                          const response = await api.post(
+                            "/users/request-seller",
+                            payload
+                          );
+                          if (response.data.success) {
+                            const { user: updatedUser, token } =
+                              response.data.data;
+                            dispatch(
+                              setCredentials({ user: updatedUser, token })
+                            );
+                            localStorage.setItem("token", token);
+                            localStorage.setItem(
+                              "user",
+                              JSON.stringify(updatedUser)
+                            );
+                            toast.success(
+                              response.data.message || "Requested seller access"
+                            );
+                          }
+                        } catch (err) {
+                          console.error("Error requesting seller:", err);
+                          toast.error(
+                            err.response?.data?.message ||
+                              "Failed to request seller access"
+                          );
+                        } finally {
+                          setRequestingSeller(false);
+                        }
+                      }}
+                      className="btn-primary"
+                      disabled={requestingSeller}
+                    >
+                      {requestingSeller
+                        ? "Requesting..."
+                        : "Request to Become a Seller"}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
             <form onSubmit={handleUpdateProfile}>
-              {/* Avatar */}
-              <div className="flex items-center gap-6 mb-6">
-                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  {profileData.avatarURL ? (
-                    <img
-                      src={profileData.avatarURL}
-                      alt={profileData.username}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-4xl text-gray-400">
-                      {profileData.username?.charAt(0)?.toUpperCase() || "U"}
-                    </span>
-                  )}
+              {/* Avatar Upload */}
+              {isEditing ? (
+                <ImageUpload
+                  currentImage={profileData.avatarURL}
+                  onImageChange={(url) =>
+                    setProfileData((prev) => ({ ...prev, avatarURL: url }))
+                  }
+                  label="Profile Picture"
+                />
+              ) : (
+                <div className="flex items-center gap-6 mb-6">
+                  <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                    {profileData.avatarURL ? (
+                      <img
+                        src={profileData.avatarURL}
+                        alt={profileData.username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-4xl text-gray-400">
+                        {profileData.username?.charAt(0)?.toUpperCase() || "U"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold mb-2">
+                      Profile Picture
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      🖼️ Change Image
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold mb-2">
-                    Avatar URL
-                  </label>
-                  <input
-                    type="url"
-                    name="avatarURL"
-                    value={profileData.avatarURL}
-                    onChange={handleProfileChange}
-                    disabled={!isEditing}
-                    placeholder="https://example.com/avatar.jpg"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Username */}
               <div className="mb-4">
@@ -2789,11 +3328,8 @@ const Profile = () => {
   );
 };
 
-const Chat = () => (
-  <div className="container-custom py-8">
-    <h1 className="text-3xl font-bold">Chat Page</h1>
-  </div>
-);
+// Use imported Chat component
+const Chat = ChatComponent;
 
 // Seller Pages
 const SellerDashboard = () => {
@@ -2831,7 +3367,7 @@ const SellerDashboard = () => {
       }
 
       // Fetch seller's orders
-      const ordersRes = await api.get("/orders/seller/orders");
+      const ordersRes = await api.get("/orders/seller");
 
       if (ordersRes.data.success) {
         const orders = ordersRes.data.data || [];
@@ -3756,6 +4292,7 @@ const SellerOrders = () => {
 // Seller Coupons Management
 const SellerCoupons = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
   const [coupons, setCoupons] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3796,7 +4333,9 @@ const SellerCoupons = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.get("/products/seller/products?limit=100");
+      const response = await api.get(
+        `/products?sellerId=${user._id}&limit=100`
+      );
       if (response.data.success) {
         setProducts(response.data.data);
       }
@@ -4409,6 +4948,17 @@ const SellerStore = () => {
                 ⭐ {store?.rating}
               </p>
             </div>
+            {user?.avatarURL ? (
+              <img
+                src={user.avatarURL}
+                alt={user.username}
+                className="w-12 h-12 rounded-full object-cover border-2 border-yellow-200"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-xl font-bold border-2 border-yellow-200">
+                {user?.username?.charAt(0).toUpperCase() || "S"}
+              </div>
+            )}
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -4419,6 +4969,17 @@ const SellerStore = () => {
                 {store?.totalSales}
               </p>
             </div>
+            {user?.avatarURL ? (
+              <img
+                src={user.avatarURL}
+                alt={user.username}
+                className="w-12 h-12 rounded-full object-cover border-2 border-green-200"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white text-xl font-bold border-2 border-green-200">
+                {user?.username?.charAt(0).toUpperCase() || "S"}
+              </div>
+            )}
           </div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -4429,41 +4990,23 @@ const SellerStore = () => {
                 {new Date(store?.createdAt).getFullYear()}
               </p>
             </div>
+            {user?.avatarURL ? (
+              <img
+                src={user.avatarURL}
+                alt={user.username}
+                className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xl font-bold border-2 border-blue-200">
+                {user?.username?.charAt(0).toUpperCase() || "S"}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Store Information */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {/* Banner */}
-        <div className="h-48 bg-gray-200 relative">
-          {store?.banner && (
-            <img
-              src={store.banner}
-              alt="Store banner"
-              className="w-full h-full object-cover"
-            />
-          )}
-          <div className="absolute bottom-4 left-4">
-            <div className="flex items-end">
-              <div className="h-24 w-24 bg-white rounded-lg border-4 border-white shadow-lg overflow-hidden">
-                {store?.logo && (
-                  <img
-                    src={store.logo}
-                    alt="Store logo"
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-              <div className="ml-4 mb-2">
-                <h2 className="text-2xl font-bold text-white drop-shadow-lg">
-                  {store?.name}
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="p-6">
           {editing ? (
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -6185,3 +6728,10 @@ export {
 
 // Import AdminUserDetail from separate file
 export { default as AdminUserDetail } from "./Admin/AdminUserDetail";
+export { default as BrowseCoupons } from "./BrowseCoupons";
+export { default as AdminDashboardNew } from "./Admin/Dashboard";
+export { default as AdminUsersNew } from "./Admin/Users";
+export { default as AdminProductsNew } from "./Admin/Products";
+export { default as SellerFeedback } from "./Seller/Feedback";
+export { default as AdminDiscounts } from "./Admin/Discounts";
+export { default as AdminOrdersNew } from "./Admin/Orders";

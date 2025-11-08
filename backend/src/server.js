@@ -38,6 +38,9 @@ const storeRoutes = require("./routes/store");
 const disputeRoutes = require("./routes/dispute");
 const notificationRoutes = require("./routes/notification");
 const adminRoutes = require("./routes/admin");
+const uploadRoutes = require("./routes/upload");
+const feedbackRoutes = require("./routes/feedback");
+const chatRoutes = require("./routes/chat");
 
 // Connect to database
 connectDB();
@@ -87,10 +90,15 @@ if (process.env.NODE_ENV === "development") {
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  max:
+    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) ||
+    (process.env.NODE_ENV === "development" ? 1000 : 100),
   message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
+// Apply rate limiting to all API routes
 app.use("/api", limiter);
 
 // Health check
@@ -116,6 +124,9 @@ app.use(`/api/${API_VERSION}/stores`, storeRoutes);
 app.use(`/api/${API_VERSION}/disputes`, disputeRoutes);
 app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/admin`, adminRoutes);
+app.use(`/api/${API_VERSION}/upload`, uploadRoutes);
+app.use(`/api/${API_VERSION}/feedback`, feedbackRoutes);
+app.use(`/api/${API_VERSION}/chat`, chatRoutes);
 
 // 404 handler
 app.use((req, res) => {

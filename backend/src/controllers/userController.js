@@ -189,3 +189,145 @@ exports.addAddress = asyncHandler(async (req, res) => {
     data: user.addresses,
   });
 });
+
+// @desc    Switch user role (Buyer <-> Seller)
+// @route   POST /api/v1/users/switch-role
+// @access  Private
+exports.switchRole = asyncHandler(async (req, res) => {
+  const { targetRole } = req.body;
+
+  // Validate target role
+  if (!["user", "seller"].includes(targetRole)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid role. Only 'user' and 'seller' roles are allowed.",
+    });
+  }
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  // Admin cannot switch to user/seller
+  if (user.role === "admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Admin accounts cannot switch roles",
+    });
+  }
+
+  // Check if already in target role
+  if (user.role === targetRole) {
+    return res.status(400).json({
+      success: false,
+      message: `You are already in ${targetRole} mode`,
+    });
+  }
+
+  // For switching to seller, check if user has completed profile
+  if (targetRole === "seller") {
+    if (!user.phone) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please complete your profile (add phone number) before switching to seller mode",
+      });
+    }
+
+    // Check if user has verification pending
+    if (user.sellerVerificationStatus === "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Your seller verification is pending approval",
+      });
+    }
+
+    // Auto-approve seller verification for now (in production, this should be manual)
+    user.sellerVerificationStatus = "verified";
+  }
+
+  // Switch role
+  const previousRole = user.role;
+  user.role = targetRole;
+  await user.save();
+
+  // Generate new token with updated role
+  const token = user.getSignedJwtToken();
+
+  const userData = user.toObject();
+  delete userData.password;
+
+  res.json({
+    success: true,
+    message: `Successfully switched from ${previousRole} to ${targetRole} mode`,
+    data: {
+      user: userData,
+      token,
+    },
+  });
+});
+
+// @desc    Request to become a seller
+// @route   POST /api/v1/users/request-seller
+// @access  Private
+exports.requestSeller = asyncHandler(async (req, res) => {
+  const { businessName, businessAddress, phoneNumber, description } = req.body;
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  // Check if already a seller
+  if (user.role === "seller") {
+    return res.status(400).json({
+      success: false,
+      message: "You are already a seller",
+    });
+  }
+
+  // Check if already admin
+  if (user.role === "admin") {
+    return res.status(400).json({
+      success: false,
+      message: "Admin accounts cannot become sellers",
+    });
+  }
+
+  // Check if verification is pending
+  if (user.sellerVerificationStatus === "pending") {
+    return res.status(400).json({
+      success: false,
+      message: "Your seller request is already pending approval",
+    });
+  }
+
+  // Update user with seller request info
+  if (phoneNumber) user.phone = phoneNumber;
+  if (description) user.bio = description;
+  // Mark request as pending for admin review
+  user.sellerVerificationStatus = "pending";
+
+  await user.save();
+
+  const userData = user.toObject();
+  delete userData.password;
+
+  res.json({
+    success: true,
+    message:
+      "Your request to become a seller has been submitted and is pending admin approval.",
+    data: {
+      user: userData,
+    },
+  });
+});

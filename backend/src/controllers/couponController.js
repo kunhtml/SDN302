@@ -1,6 +1,42 @@
 const Coupon = require("../models/Coupon");
 const Product = require("../models/Product");
 
+// @desc    Get all available coupons for buyers to browse
+// @route   GET /api/v1/coupons/available
+// @access  Public
+exports.getAvailableCoupons = async (req, res, next) => {
+  try {
+    const now = new Date();
+
+    // Find coupons that are:
+    // 1. Not expired
+    // 2. Have remaining usage
+    const coupons = await Coupon.find({
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+      $expr: { $lt: ["$usageCount", "$maxUsage"] },
+    })
+      .select(
+        "code description discountPercent discountAmount applicableCategories maxUsage usageCount"
+      )
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.status(200).json({
+      success: true,
+      count: coupons.length,
+      data: coupons,
+    });
+  } catch (error) {
+    console.error("Error fetching available coupons:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch available coupons",
+      error: error.message,
+    });
+  }
+};
+
 // @desc    Get all coupons for seller
 // @route   GET /api/v1/coupons/seller
 // @access  Private (Seller)
@@ -130,7 +166,7 @@ exports.createCoupon = async (req, res, next) => {
 
 // @desc    Update coupon
 // @route   PUT /api/v1/coupons/:id
-// @access  Private (Seller)
+// @access  Private (Seller/Admin)
 exports.updateCoupon = async (req, res, next) => {
   try {
     const {
@@ -144,6 +180,7 @@ exports.updateCoupon = async (req, res, next) => {
       maxUsage,
       productIds,
       description,
+      isActive,
     } = req.body;
 
     // Find coupon
@@ -156,8 +193,11 @@ exports.updateCoupon = async (req, res, next) => {
       });
     }
 
-    // Check ownership
-    if (coupon.seller.toString() !== req.user._id.toString()) {
+    // Check ownership (allow admin to update any coupon)
+    if (
+      req.user.role !== "admin" &&
+      coupon.seller.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this coupon",
@@ -187,7 +227,7 @@ exports.updateCoupon = async (req, res, next) => {
     if (code && code.toUpperCase() !== coupon.code) {
       const existingCoupon = await Coupon.findOne({
         code: code.toUpperCase(),
-        seller: req.user._id,
+        seller: coupon.seller,
         _id: { $ne: req.params.id },
       });
 
@@ -203,13 +243,13 @@ exports.updateCoupon = async (req, res, next) => {
     if (productIds && productIds.length > 0) {
       const products = await Product.find({
         _id: { $in: productIds },
-        sellerId: req.user._id,
+        sellerId: coupon.seller,
       });
 
       if (products.length !== productIds.length) {
         return res.status(400).json({
           success: false,
-          message: "Some products are invalid or do not belong to you",
+          message: "Some products are invalid or do not belong to the seller",
         });
       }
     }
@@ -233,6 +273,7 @@ exports.updateCoupon = async (req, res, next) => {
         maxUsage: maxUsage !== undefined ? maxUsage : coupon.maxUsage,
         applicableProducts:
           productIds !== undefined ? productIds : coupon.applicableProducts,
+        isActive: isActive !== undefined ? isActive : coupon.isActive,
       },
       { new: true, runValidators: true }
     ).populate("applicableProducts", "title images");
@@ -254,7 +295,7 @@ exports.updateCoupon = async (req, res, next) => {
 
 // @desc    Delete coupon
 // @route   DELETE /api/v1/coupons/:id
-// @access  Private (Seller)
+// @access  Private (Seller/Admin)
 exports.deleteCoupon = async (req, res, next) => {
   try {
     const coupon = await Coupon.findById(req.params.id);
@@ -266,8 +307,11 @@ exports.deleteCoupon = async (req, res, next) => {
       });
     }
 
-    // Check ownership
-    if (coupon.seller.toString() !== req.user._id.toString()) {
+    // Check ownership (allow admin to delete any coupon)
+    if (
+      req.user.role !== "admin" &&
+      coupon.seller.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
         message: "Not authorized to delete this coupon",
@@ -447,6 +491,126 @@ exports.applyCoupon = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: "Failed to apply coupon",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get all coupons (Admin)
+// @route   GET /api/v1/coupons
+// @access  Private (Admin)
+exports.getAllCoupons = async (req, res, next) => {
+  try {
+    const { search, status } = req.query;
+
+    const query = {};
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { code: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Status filter
+    if (status === "active") {
+      query.isActive = true;
+    } else if (status === "inactive") {
+      query.isActive = false;
+    }
+
+    const coupons = await Coupon.find(query)
+      .populate("seller", "username email")
+      .populate("applicableProducts", "title")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: coupons.length,
+      data: coupons,
+    });
+  } catch (error) {
+    console.error("Error fetching all coupons:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch coupons",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get coupon by ID (Admin)
+// @route   GET /api/v1/coupons/:id
+// @access  Private (Admin/Seller)
+exports.getCouponById = async (req, res, next) => {
+  try {
+    const coupon = await Coupon.findById(req.params.id)
+      .populate("seller", "username email")
+      .populate("applicableProducts", "title images");
+
+    if (!coupon) {
+      return res.status(404).json({
+        success: false,
+        message: "Coupon not found",
+      });
+    }
+
+    // Check if user is admin or the seller who owns the coupon
+    if (
+      req.user.role !== "admin" &&
+      coupon.seller._id.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view this coupon",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: coupon,
+    });
+  } catch (error) {
+    console.error("Error fetching coupon:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch coupon",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Update coupon status (Admin)
+// @route   PUT /api/v1/coupons/:id/status
+// @access  Private (Admin)
+exports.updateCouponStatus = async (req, res, next) => {
+  try {
+    const { isActive } = req.body;
+
+    const coupon = await Coupon.findByIdAndUpdate(
+      req.params.id,
+      { isActive },
+      { new: true, runValidators: true }
+    );
+
+    if (!coupon) {
+      return res.status(404).json({
+        success: false,
+        message: "Coupon not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Coupon status updated successfully",
+      data: coupon,
+    });
+  } catch (error) {
+    console.error("Error updating coupon status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update coupon status",
       error: error.message,
     });
   }

@@ -21,18 +21,25 @@ import {
   OrderDetail,
   Profile,
   Chat,
+  BrowseCoupons,
   SellerDashboard,
   SellerProducts,
   AddProduct,
   SellerOrders,
   SellerCoupons,
   SellerStore,
+  SellerFeedback,
   AdminDashboard,
+  AdminDashboardNew,
   AdminUsers,
+  AdminUsersNew,
   AdminUserDetail,
   AdminProducts,
+  AdminProductsNew,
   AdminOrders,
+  AdminOrdersNew,
   AdminDisputes,
+  AdminDiscounts,
   NotFound,
 } from "./pages";
 
@@ -85,6 +92,7 @@ function App() {
           />
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductDetail />} />
+          <Route path="browse-coupons" element={<BrowseCoupons />} />
 
           <Route
             element={
@@ -93,11 +101,16 @@ function App() {
           >
             <Route path="cart" element={<Cart />} />
             <Route path="checkout" element={<Checkout />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="orders/:id" element={<OrderDetail />} />
             <Route path="profile" element={<Profile />} />
             <Route path="chat" element={<Chat />} />
             <Route path="chat/:conversationId" element={<Chat />} />
+          </Route>
+
+          <Route
+            element={<ProtectedRoute allowedRoles={["buyer", "seller"]} />}
+          >
+            <Route path="orders" element={<Orders />} />
+            <Route path="orders/:id" element={<OrderDetail />} />
           </Route>
 
           <Route
@@ -110,18 +123,20 @@ function App() {
             <Route path="orders" element={<SellerOrders />} />
             <Route path="coupons" element={<SellerCoupons />} />
             <Route path="store" element={<SellerStore />} />
+            <Route path="feedback" element={<SellerFeedback />} />
           </Route>
 
           <Route
             path="admin"
             element={<ProtectedRoute allowedRoles={["admin"]} />}
           >
-            <Route index element={<AdminDashboard />} />
-            <Route path="users" element={<AdminUsers />} />
+            <Route index element={<AdminDashboardNew />} />
+            <Route path="users" element={<AdminUsersNew />} />
             <Route path="users/:id" element={<AdminUserDetail />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="orders" element={<AdminOrders />} />
+            <Route path="products" element={<AdminProductsNew />} />
+            <Route path="orders" element={<AdminOrdersNew />} />
             <Route path="disputes" element={<AdminDisputes />} />
+            <Route path="discounts" element={<AdminDiscounts />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

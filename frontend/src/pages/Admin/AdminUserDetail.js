@@ -2,6 +2,19 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../../services/api";
 import { toast } from "react-toastify";
+import ImageUpload from "../../components/ImageUpload";
+import {
+  XCircle,
+  CheckCircle,
+  PencilSimple,
+  Prohibit,
+  Trash,
+  FloppyDisk,
+  Image as ImageIcon,
+  User,
+  Storefront,
+  Crown,
+} from "phosphor-react";
 
 const AdminUserDetail = () => {
   const { id } = useParams();
@@ -17,6 +30,7 @@ const AdminUserDetail = () => {
     phone: "",
     role: "buyer",
     isActive: true,
+    avatarURL: "",
   });
 
   useEffect(() => {
@@ -38,6 +52,7 @@ const AdminUserDetail = () => {
           phone: userData.phone || "",
           role: userData.role || "buyer",
           isActive: userData.isActive !== undefined ? userData.isActive : true,
+          avatarURL: userData.avatarURL || "",
         });
       }
     } catch (error) {
@@ -150,7 +165,11 @@ const AdminUserDetail = () => {
     return (
       <div className="container-custom py-8">
         <div className="card text-center py-16">
-          <div className="text-6xl mb-4">❌</div>
+          <XCircle
+            size={64}
+            weight="fill"
+            className="text-red-500 mx-auto mb-4"
+          />
           <h2 className="text-2xl font-bold mb-4">User Not Found</h2>
           <Link to="/admin/users" className="btn-primary inline-block">
             Back to Users
@@ -199,8 +218,8 @@ const AdminUserDetail = () => {
                   {user.isActive ? "Active" : "Inactive"}
                 </span>
                 {user.emailVerified && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                    ✓ Email Verified
+                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <CheckCircle size={14} weight="fill" /> Email Verified
                   </span>
                 )}
               </div>
@@ -211,25 +230,33 @@ const AdminUserDetail = () => {
               <>
                 <button
                   onClick={() => setEditing(true)}
-                  className="btn-secondary"
+                  className="btn-secondary flex items-center gap-2"
                 >
-                  ✏️ Edit
+                  <PencilSimple size={16} weight="bold" /> Edit
                 </button>
                 <button
                   onClick={handleStatusToggle}
-                  className={`px-4 py-2 rounded-lg font-semibold ${
+                  className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${
                     user.isActive
                       ? "bg-red-100 text-red-700 hover:bg-red-200"
                       : "bg-green-100 text-green-700 hover:bg-green-200"
                   }`}
                 >
-                  {user.isActive ? "🚫 Deactivate" : "✅ Activate"}
+                  {user.isActive ? (
+                    <>
+                      <Prohibit size={16} weight="bold" /> Deactivate
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={16} weight="fill" /> Activate
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 flex items-center gap-2"
                 >
-                  🗑️ Delete
+                  <Trash size={16} weight="bold" /> Delete
                 </button>
               </>
             ) : (
@@ -244,6 +271,7 @@ const AdminUserDetail = () => {
                     phone: user.phone || "",
                     role: user.role || "buyer",
                     isActive: user.isActive,
+                    avatarURL: user.avatarURL || "",
                   });
                 }}
                 className="btn-secondary"
@@ -263,6 +291,15 @@ const AdminUserDetail = () => {
 
             {editing ? (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Avatar Upload */}
+                <ImageUpload
+                  currentImage={formData.avatarURL}
+                  onImageChange={(url) =>
+                    setFormData((prev) => ({ ...prev, avatarURL: url }))
+                  }
+                  label="User Avatar"
+                />
+
                 {/* Username */}
                 <div>
                   <label className="block text-sm font-semibold mb-2">
@@ -372,13 +409,38 @@ const AdminUserDetail = () => {
 
                 {/* Submit */}
                 <div className="flex gap-4">
-                  <button type="submit" className="btn-primary flex-1">
-                    💾 Save Changes
+                  <button
+                    type="submit"
+                    className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  >
+                    <FloppyDisk size={20} weight="fill" /> Save Changes
                   </button>
                 </div>
               </form>
             ) : (
               <div className="space-y-4">
+                {/* Avatar Display with Change Button */}
+                <div className="flex items-center gap-6 mb-6 pb-6 border-b border-gray-200">
+                  <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={user.avatarURL || "https://via.placeholder.com/150"}
+                      alt={user.username || "User"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold mb-2">
+                      Profile Picture
+                    </label>
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <ImageIcon size={18} weight="duotone" /> Change Image
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="text-sm font-semibold text-gray-600">
@@ -477,23 +539,23 @@ const AdminUserDetail = () => {
               <button
                 onClick={() => handleRoleChange("buyer")}
                 disabled={user.role === "buyer"}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-left flex items-center gap-2"
               >
-                👤 Set as Buyer
+                <User size={18} weight="duotone" /> Set as Buyer
               </button>
               <button
                 onClick={() => handleRoleChange("seller")}
                 disabled={user.role === "seller"}
-                className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed text-left flex items-center gap-2"
               >
-                🛍️ Set as Seller
+                <Storefront size={18} weight="duotone" /> Set as Seller
               </button>
               <button
                 onClick={() => handleRoleChange("admin")}
                 disabled={user.role === "admin"}
-                className="w-full px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-semibold hover:bg-purple-200 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                className="w-full px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-semibold hover:bg-purple-200 disabled:opacity-50 disabled:cursor-not-allowed text-left flex items-center gap-2"
               >
-                👑 Set as Admin
+                <Crown size={18} weight="duotone" /> Set as Admin
               </button>
             </div>
           </div>

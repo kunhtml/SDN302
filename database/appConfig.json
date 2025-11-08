@@ -1,0 +1,43 @@
+{
+  "appConfig": {
+    "name": "eBay Clone",
+    "version": "1.0.0",
+    "description": "A full-stack eBay clone application",
+    "environment": "development",
+    "api": {
+      "baseURL": "http://localhost:5000",
+      "version": "v1",
+      "timeout": 10000
+    },
+    "features": {
+      "authentication": true,
+      "productListing": true,
+      "auction": true,
+      "messaging": true,
+      "reviews": true,
+      "coupons": true,
+      "disputes": true,
+      "adminPanel": true
+    },
+    "pagination": {
+      "defaultLimit": 10,
+      "maxLimit": 100
+    },
+    "fileUpload": {
+      "provider": "freeimage.host",
+      "maxFileSize": 33554432,
+      "allowedFormats": ["jpg", "jpeg", "png", "gif", "webp", "bmp"]
+    },
+    "security": {
+      "jwtExpiry": "7d",
+      "passwordMinLength": 6,
+      "enableRateLimiting": true,
+      "rateLimitWindowMs": 900000,
+      "rateLimitMaxRequests": 100
+    },
+    "currency": {
+      "code": "USD",
+      "symbol": "$"
+    }
+  }
+}

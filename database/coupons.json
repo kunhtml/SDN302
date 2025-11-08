@@ -1,0 +1,45 @@
+{
+  "coupons": [
+    {
+      "code": "WELCOME10",
+      "discountPercent": 10,
+      "description": "Welcome discount for new users",
+      "maxUsage": 1000,
+      "usageCount": 0,
+      "startDate": "2024-01-01",
+      "endDate": "2025-12-31",
+      "applicableCategories": ["Electronics", "Fashion"]
+    },
+    {
+      "code": "SUMMER20",
+      "discountPercent": 20,
+      "description": "Summer sale coupon",
+      "maxUsage": 500,
+      "usageCount": 150,
+      "startDate": "2024-06-01",
+      "endDate": "2024-08-31",
+      "applicableCategories": ["Fashion", "Sports & Outdoors"]
+    },
+    {
+      "code": "FREESHIP",
+      "discountPercent": 0,
+      "discountAmount": 5,
+      "description": "Free shipping on orders over $50",
+      "maxUsage": 2000,
+      "usageCount": 450,
+      "startDate": "2024-01-01",
+      "endDate": "2025-12-31",
+      "applicableCategories": []
+    },
+    {
+      "code": "ELECTRONICS15",
+      "discountPercent": 15,
+      "description": "Electronics category discount",
+      "maxUsage": 300,
+      "usageCount": 89,
+      "startDate": "2024-03-01",
+      "endDate": "2024-12-31",
+      "applicableCategories": ["Electronics"]
+    }
+  ]
+}

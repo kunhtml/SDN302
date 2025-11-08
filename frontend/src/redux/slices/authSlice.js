@@ -39,6 +39,7 @@ const saveAuthData = (token, refreshToken, user, rememberMe = false) => {
 };
 
 const clearAuthData = () => {
+  // Remove from both storages
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -126,12 +127,12 @@ export const register = createAsyncThunk(
 
       // Different toast styles based on error type
       if (message.toLowerCase().includes("email")) {
-        toast.error("❌ " + message, {
+        toast.error(message, {
           autoClose: 5000,
           position: "top-center",
         });
       } else {
-        toast.error("❌ " + message);
+        toast.error(message);
       }
 
       return rejectWithValue(message);
@@ -175,18 +176,18 @@ export const login = createAsyncThunk(
 
       // Specific error handling
       if (message.toLowerCase().includes("password")) {
-        toast.error("🔒 Incorrect password. Please try again.", {
+        toast.error("Incorrect password. Please try again.", {
           position: "top-center",
         });
       } else if (
         message.toLowerCase().includes("email") ||
         message.toLowerCase().includes("user")
       ) {
-        toast.error("📧 User not found. Please check your email.", {
+        toast.error("User not found. Please check your email.", {
           position: "top-center",
         });
       } else {
-        toast.error("❌ " + message);
+        toast.error(message);
       }
 
       return rejectWithValue(message);
@@ -249,7 +250,7 @@ export const logout = createAsyncThunk(
       clearAuthData();
 
       if (showToast) {
-        toast.info("👋 You've been logged out successfully", {
+        toast.info("You've been logged out successfully", {
           position: "top-center",
           autoClose: 2000,
         });
@@ -279,14 +280,14 @@ export const updateProfile = createAsyncThunk(
 
       storage.setItem(USER_KEY, JSON.stringify(user));
 
-      toast.success("✅ Profile updated successfully!", {
+      toast.success("Profile updated successfully!", {
         autoClose: 2000,
       });
 
       return user;
     } catch (error) {
       const message = getErrorMessage(error);
-      toast.error("❌ " + message);
+      toast.error(message);
       return rejectWithValue(message);
     }
   }
@@ -314,11 +315,11 @@ export const changePassword = createAsyncThunk(
       const message = getErrorMessage(error);
 
       if (message.toLowerCase().includes("current")) {
-        toast.error("❌ Current password is incorrect", {
+        toast.error("Current password is incorrect", {
           position: "top-center",
         });
       } else {
-        toast.error("❌ " + message);
+        toast.error(message);
       }
 
       return rejectWithValue(message);
@@ -348,7 +349,7 @@ export const requestPasswordReset = createAsyncThunk(
       return true;
     } catch (error) {
       const message = getErrorMessage(error);
-      toast.error("❌ " + message);
+      toast.error(message);
       return rejectWithValue(message);
     }
   }
@@ -378,12 +379,12 @@ export const resetPassword = createAsyncThunk(
       const message = getErrorMessage(error);
 
       if (message.toLowerCase().includes("token")) {
-        toast.error("⏱️ Reset link has expired. Please request a new one.", {
+        toast.error("Reset link has expired. Please request a new one.", {
           position: "top-center",
           autoClose: 5000,
         });
       } else {
-        toast.error("❌ " + message);
+        toast.error(message);
       }
 
       return rejectWithValue(message);
@@ -424,6 +425,21 @@ const authSlice = createSlice({
       state.user = { ...state.user, ...action.payload };
       const storage = state.rememberMe ? localStorage : sessionStorage;
       storage.setItem(USER_KEY, JSON.stringify(state.user));
+    },
+
+    /**
+     * Set credentials (user + token) - used for role switching
+     */
+    setCredentials: (state, action) => {
+      const { user, token } = action.payload;
+      state.user = user;
+      state.isAuthenticated = true;
+      state.lastActivity = Date.now();
+
+      // Update storage
+      const storage = state.rememberMe ? localStorage : sessionStorage;
+      storage.setItem(TOKEN_KEY, token);
+      storage.setItem(USER_KEY, JSON.stringify(user));
     },
 
     /**
@@ -602,6 +618,7 @@ export const {
   updateActivity,
   setSessionExpired,
   updateUserLocal,
+  setCredentials,
   clearErrorDelayed,
 } = authSlice.actions;
 

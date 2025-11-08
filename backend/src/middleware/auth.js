@@ -81,23 +81,44 @@ exports.authorize = (...roles) => {
 // Check if user is a verified seller
 exports.isVerifiedSeller = async (req, res, next) => {
   try {
-    if (!req.user.isSeller) {
-      return res.status(403).json({
-        success: false,
-        message: "You must be registered as a seller",
-      });
+    // Check if user has seller role
+    if (req.user.role === "seller") {
+      // For role-based system, just check if role is seller
+      // (role switching already auto-verifies)
+      return next();
     }
 
-    if (!req.user.sellerVerified) {
-      return res.status(403).json({
-        success: false,
-        message: "Your seller account is not verified yet",
-      });
+    // Check old isSeller system (for backward compatibility)
+    if (req.user.isSeller && req.user.sellerVerified) {
+      return next();
     }
 
-    next();
+    // User is not a seller
+    return res.status(403).json({
+      success: false,
+      message: "You must be a verified seller to access this route",
+    });
   } catch (error) {
     logger.error(`Seller verification error: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Check if user is an admin
+exports.isAdmin = async (req, res, next) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
+    next();
+  } catch (error) {
+    logger.error(`Admin verification error: ${error.message}`);
     res.status(500).json({
       success: false,
       message: "Server error",
