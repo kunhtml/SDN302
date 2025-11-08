@@ -215,11 +215,12 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Check authorization
-    if (
-      order.sellerId?.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
+    // Check authorization - seller can update if they have items in this order
+    const isSeller = order.items.some(
+      (item) => item.seller && item.seller.toString() === req.user._id.toString()
+    );
+
+    if (!isSeller && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "Not authorized to update this order",
